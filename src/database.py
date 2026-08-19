@@ -18,6 +18,33 @@ def init_db():
     conn = get_connection()
     cur = conn.cursor()
 
+    # Table : Utilisateurs
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS utilisateurs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nom TEXT NOT NULL,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('admin', 'employe')),
+            actif INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Créer admin par défaut si pas encore créé
+    existing = cur.execute("SELECT COUNT(*) FROM utilisateurs WHERE username='admin'").fetchone()[0]
+    if existing == 0:
+        import hashlib
+        def h(p): return hashlib.sha256(p.encode()).hexdigest()
+        cur.executemany("""
+            INSERT INTO utilisateurs (nom, username, password, role) VALUES (?, ?, ?, ?)
+        """, [
+            ('Administrateur', 'admin',    h('admin123'),   'admin'),
+            ('Employe 1',      'employe1', h('employe1'),   'employe'),
+            ('Employe 2',      'employe2', h('employe2'),   'employe'),
+            ('Employe 3',      'employe3', h('employe3'),   'employe'),
+        ])
+
     # Table : Produits (références de jus)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS produits (
