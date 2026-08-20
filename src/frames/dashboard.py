@@ -1,13 +1,10 @@
-"""
-dashboard.py — Tableau de bord principal
-"""
-
+# dashboard.py
 import tkinter as tk
 from tkinter import ttk
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from database import get_connection
-
+from config import MONNAIE, BOUTIQUE_NOM
 
 class DashboardFrame(tk.Frame):
     def __init__(self, parent, controller):
@@ -16,95 +13,69 @@ class DashboardFrame(tk.Frame):
         self._build()
 
     def _build(self):
-        # Titre
         tk.Label(self, text="Tableau de bord", font=("Arial", 18, "bold"),
-                 bg="#f0f4f8", fg="#1a2940").pack(anchor="w", padx=30, pady=(25, 5))
-        tk.Label(self, text="Vue d'ensemble de votre stock", font=("Arial", 10),
-                 bg="#f0f4f8", fg="#667788").pack(anchor="w", padx=30, pady=(0, 20))
+                 bg="#f0f4f8", fg="#1a2940").pack(anchor="w", padx=30, pady=(20,3))
+        tk.Label(self, text=f"Bienvenue sur {BOUTIQUE_NOM}", font=("Arial", 10),
+                 bg="#f0f4f8", fg="#667788").pack(anchor="w", padx=30, pady=(0,15))
 
-        # Cartes de statistiques
         self.cards_frame = tk.Frame(self, bg="#f0f4f8")
         self.cards_frame.pack(fill="x", padx=30)
+        self.c_produits    = self._card(self.cards_frame, "Produits",          "0", "#4a90d9", "Produits")
+        self.c_stock       = self._card(self.cards_frame, f"Total en stock",   "0", "#27ae60", "Stock")
+        self.c_alertes     = self._card(self.cards_frame, "Stock bas",         "0", "#e74c3c", "Alertes")
+        self.c_fournisseurs= self._card(self.cards_frame, "Fournisseurs",      "0", "#f39c12", "Fourn.")
+        for c in [self.c_produits, self.c_stock, self.c_alertes, self.c_fournisseurs]:
+            c.pack(side="left", padx=8, pady=8, expand=True, fill="x")
 
-        self.card_produits = self._make_card(self.cards_frame, "Produits", "0", "#4a90d9", "📦")
-        self.card_stock = self._make_card(self.cards_frame, "Bouteilles en stock", "0", "#27ae60", "🧃")
-        self.card_alertes = self._make_card(self.cards_frame, "Alertes stock bas", "0", "#e74c3c", "⚠️")
-        self.card_fournisseurs = self._make_card(self.cards_frame, "Fournisseurs", "0", "#f39c12", "🏭")
-
-        for c in [self.card_produits, self.card_stock, self.card_alertes, self.card_fournisseurs]:
-            c.pack(side="left", padx=10, pady=10, expand=True, fill="x")
-
-        # Derniers achats
         tk.Label(self, text="Derniers approvisionnements", font=("Arial", 13, "bold"),
-                 bg="#f0f4f8", fg="#1a2940").pack(anchor="w", padx=30, pady=(20, 5))
+                 bg="#f0f4f8", fg="#1a2940").pack(anchor="w", padx=30, pady=(15,5))
+        cols = ("Date","Produit","Fournisseur","Quantite","Total")
+        self.tree = ttk.Treeview(self, columns=cols, show="headings", height=7)
+        for c, w in zip(cols, [130,180,150,90,130]):
+            self.tree.heading(c, text=c); self.tree.column(c, width=w, anchor="center")
+        self.tree.pack(fill="x", padx=30, pady=3)
 
-        cols = ("Date", "Produit", "Fournisseur", "Quantité", "Prix Total")
-        self.tree = ttk.Treeview(self, columns=cols, show="headings", height=8)
-        for c in cols:
-            self.tree.heading(c, text=c)
-            self.tree.column(c, width=160, anchor="center")
-        self.tree.pack(fill="x", padx=30, pady=5)
+        tk.Label(self, text="Produits en stock bas", font=("Arial", 12, "bold"),
+                 bg="#f0f4f8", fg="#e74c3c").pack(anchor="w", padx=30, pady=(12,5))
+        cols2 = ("Produit","Stock actuel","Minimum")
+        self.tree2 = ttk.Treeview(self, columns=cols2, show="headings", height=4)
+        for c, w in zip(cols2, [220,140,140]):
+            self.tree2.heading(c, text=c); self.tree2.column(c, width=w, anchor="center")
+        self.tree2.pack(fill="x", padx=30, pady=3)
+        self.tree2.tag_configure("bas", foreground="#e74c3c")
 
-        # Alerte stock bas
-        tk.Label(self, text="⚠️ Produits en stock bas", font=("Arial", 13, "bold"),
-                 bg="#f0f4f8", fg="#e74c3c").pack(anchor="w", padx=30, pady=(15, 5))
-        cols2 = ("Produit", "Stock actuel", "Minimum requis")
-        self.tree_alertes = ttk.Treeview(self, columns=cols2, show="headings", height=4)
-        for c in cols2:
-            self.tree_alertes.heading(c, text=c)
-            self.tree_alertes.column(c, width=200, anchor="center")
-        self.tree_alertes.pack(fill="x", padx=30, pady=5)
-
-    def _make_card(self, parent, title, value, color, icon):
-        frame = tk.Frame(parent, bg=color, relief="flat", bd=0)
-        frame.configure(highlightbackground=color, highlightthickness=2)
-        tk.Label(frame, text=icon, font=("Arial", 22), bg=color, fg="white").pack(pady=(12, 0))
-        lbl_val = tk.Label(frame, text=value, font=("Arial", 20, "bold"), bg=color, fg="white")
-        lbl_val.pack()
-        tk.Label(frame, text=title, font=("Arial", 9), bg=color, fg="#e8f4fd").pack(pady=(0, 12))
-        frame._value_label = lbl_val
-        return frame
+    def _card(self, parent, title, value, color, icon):
+        f = tk.Frame(parent, bg=color)
+        tk.Label(f, text=icon, font=("Arial", 11), bg=color, fg="white").pack(pady=(10,0))
+        lv = tk.Label(f, text=value, font=("Arial", 20, "bold"), bg=color, fg="white")
+        lv.pack()
+        tk.Label(f, text=title, font=("Arial", 8), bg=color, fg="#e8f4fd").pack(pady=(0,10))
+        f._val = lv
+        return f
 
     def refresh(self):
         conn = get_connection()
-        cur = conn.cursor()
+        nb_p   = conn.execute("SELECT COUNT(*) FROM produits").fetchone()[0]
+        total  = conn.execute("SELECT SUM(stock_actuel) FROM produits").fetchone()[0] or 0
+        alrt   = conn.execute("SELECT COUNT(*) FROM produits WHERE stock_actuel<=stock_minimum").fetchone()[0]
+        nb_f   = conn.execute("SELECT COUNT(*) FROM fournisseurs").fetchone()[0]
+        self.c_produits._val.config(text=str(nb_p))
+        self.c_stock._val.config(text=str(total))
+        self.c_alertes._val.config(text=str(alrt))
+        self.c_fournisseurs._val.config(text=str(nb_f))
 
-        # Stats
-        nb_produits = cur.execute("SELECT COUNT(*) FROM produits").fetchone()[0]
-        total_stock = cur.execute("SELECT SUM(stock_actuel) FROM produits").fetchone()[0] or 0
-        alertes = cur.execute("SELECT COUNT(*) FROM produits WHERE stock_actuel <= stock_minimum").fetchone()[0]
-        nb_fourn = cur.execute("SELECT COUNT(*) FROM fournisseurs").fetchone()[0]
+        for r in self.tree.get_children(): self.tree.delete(r)
+        for r in conn.execute("""
+            SELECT a.date_achat,p.nom,COALESCE(f.nom,'-'),a.quantite,a.prix_total
+            FROM achats a JOIN produits p ON a.produit_id=p.id
+            LEFT JOIN fournisseurs f ON a.fournisseur_id=f.id
+            ORDER BY a.date_achat DESC LIMIT 8
+        """).fetchall():
+            self.tree.insert("","end", values=(str(r[0])[:16],r[1],r[2],r[3],f"{r[4]:,.0f} {MONNAIE}"))
 
-        self.card_produits._value_label.config(text=str(nb_produits))
-        self.card_stock._value_label.config(text=str(total_stock))
-        self.card_alertes._value_label.config(text=str(alertes))
-        self.card_fournisseurs._value_label.config(text=str(nb_fourn))
-
-        # Derniers achats
-        for row in self.tree.get_children():
-            self.tree.delete(row)
-        rows = cur.execute("""
-            SELECT a.date_achat, p.nom, COALESCE(f.nom, '—'), a.quantite, a.prix_total
-            FROM achats a
-            JOIN produits p ON a.produit_id = p.id
-            LEFT JOIN fournisseurs f ON a.fournisseur_id = f.id
-            ORDER BY a.date_achat DESC LIMIT 10
-        """).fetchall()
-        for r in rows:
-            self.tree.insert("", "end", values=(
-                str(r[0])[:16], r[1], r[2], r[3], f"{r[4]:.2f} CDF"
-            ))
-
-        # Alertes stock bas
-        for row in self.tree_alertes.get_children():
-            self.tree_alertes.delete(row)
-        alertes_rows = cur.execute("""
-            SELECT nom, stock_actuel, stock_minimum FROM produits
-            WHERE stock_actuel <= stock_minimum ORDER BY stock_actuel ASC
-        """).fetchall()
-        for r in alertes_rows:
-            self.tree_alertes.insert("", "end", values=(r[0], r[1], r[2]),
-                                     tags=("alerte",))
-        self.tree_alertes.tag_configure("alerte", foreground="#e74c3c")
-
+        for r in self.tree2.get_children(): self.tree2.delete(r)
+        for r in conn.execute(
+            "SELECT nom,stock_actuel,stock_minimum FROM produits WHERE stock_actuel<=stock_minimum"
+        ).fetchall():
+            self.tree2.insert("","end", values=(r[0],r[1],r[2]), tags=("bas",))
         conn.close()
