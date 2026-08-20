@@ -11,6 +11,7 @@ from datetime import datetime
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from database import get_connection
+from config import BOUTIQUE_NOM, BOUTIQUE_SLOGAN, BOUTIQUE_ADRESSE, BOUTIQUE_TELEPHONE, MONNAIE, UNITE_DEFAULT
 
 BLEU   = colors.HexColor("#1a2940")
 CYAN   = colors.HexColor("#4a90d9")
@@ -24,7 +25,7 @@ def generer_facture(vente_id: int, output_path: str):
     conn = get_connection()
     vente = conn.execute("""
         SELECT v.id, v.date_vente, v.quantite, v.prix_unitaire, v.prix_total,
-               v.client, v.notes, p.nom, p.unite
+               v.client, v.notes, p.nom, p.unite, COALESCE(v.paquets_offerts, 0)
         FROM ventes v JOIN produits p ON v.produit_id = p.id
         WHERE v.id = ?
     """, (vente_id,)).fetchone()
@@ -47,8 +48,11 @@ def generer_facture(vente_id: int, output_path: str):
     story = []
 
     # ── En-tête ──────────────────────────────────────────────────
+    adresse_lines = ""
+    if BOUTIQUE_ADRESSE:   adresse_lines += f"{BOUTIQUE_ADRESSE}<br/>"
+    if BOUTIQUE_TELEPHONE: adresse_lines += f"Tel : {BOUTIQUE_TELEPHONE}<br/>"
     header_data = [[
-        Paragraph("<b>🧃 Stock Jus</b><br/>Vente de Jus en Bouteille", title_s),
+        Paragraph(f"<b>{BOUTIQUE_NOM}</b><br/>{BOUTIQUE_SLOGAN}<br/>{adresse_lines}", title_s),
         Paragraph(
             f"<b>FACTURE N° {vente[0]:04d}</b><br/>"
             f"Date : {str(vente[1])[:10]}<br/>"
@@ -75,16 +79,19 @@ def generer_facture(vente_id: int, output_path: str):
     story.append(HRFlowable(width="100%", thickness=1, color=CYAN, spaceAfter=10))
 
     # ── Tableau produit ──────────────────────────────────────────
-    story.append(Paragraph("<b>Détail de la vente</b>",
+    story.append(Paragraph("<b>Detail de la vente</b>",
                             ParagraphStyle("h", fontSize=11, textColor=BLEU,
                                            fontName="Helvetica-Bold", spaceAfter=8)))
 
+    paquets_offerts = vente[9]
     data = [
-        ["Produit", "Unité", "Quantité", "Prix unitaire", "Total"],
+        ["Produit", "Unite", "Quantite", "Prix unitaire", "Offerts", "Total"],
         [vente[7], vente[8], str(vente[2]),
-         f"{vente[3]:,.0f} CDF", f"{vente[4]:,.0f} CDF"],
+         f"{vente[3]:,.0f} {MONNAIE}",
+         f"+{paquets_offerts}" if paquets_offerts > 0 else "—",
+         f"{vente[4]:,.0f} {MONNAIE}"],
     ]
-    t = Table(data, colWidths=[5.5*cm, 2.5*cm, 2.5*cm, 3.5*cm, 3.5*cm])
+    t = Table(data, colWidths=[4.5*cm, 2*cm, 2.2*cm, 3*cm, 2*cm, 3*cm])
     t.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, 0), CYAN),
         ("TEXTCOLOR",     (0, 0), (-1, 0), BLANC),
@@ -92,13 +99,23 @@ def generer_facture(vente_id: int, output_path: str):
         ("FONTSIZE",      (0, 0), (-1, 0), 10),
         ("BACKGROUND",    (0, 1), (-1, 1), BLANC),
         ("FONTSIZE",      (0, 1), (-1, 1), 10),
+        ("TEXTCOLOR",     (4, 1), (4, 1), VERT),
+        ("FONTNAME",      (4, 1), (4, 1), "Helvetica-Bold"),
         ("ALIGN",         (2, 0), (-1, -1), "CENTER"),
         ("GRID",          (0, 0), (-1, -1), 0.5, colors.HexColor("#ccddee")),
         ("TOPPADDING",    (0, 0), (-1, -1), 8),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
     ]))
     story.append(t)
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 8))
+
+    # Ligne paquets offerts
+    if paquets_offerts > 0:
+        story.append(Paragraph(
+            f"<b>Cadeau inclus :</b> +{paquets_offerts} {UNITE_DEFAULT}(s) offert(s) !",
+            ParagraphStyle("gift", fontSize=10, textColor=VERT, fontName="Helvetica-Bold")
+        ))
+        story.append(Spacer(1, 6))
 
     # ── Total ────────────────────────────────────────────────────
     total_data = [

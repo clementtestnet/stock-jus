@@ -51,13 +51,25 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nom TEXT NOT NULL,
             description TEXT,
-            unite TEXT DEFAULT 'bouteille',
+            unite TEXT DEFAULT 'paquet',
             prix_vente REAL DEFAULT 0,
             stock_actuel INTEGER DEFAULT 0,
             stock_minimum INTEGER DEFAULT 10,
+            reduction_palier INTEGER DEFAULT 0,
+            reduction_quantite INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # Ajouter colonnes reduction si elles n'existent pas (migration)
+    try:
+        cur.execute("ALTER TABLE produits ADD COLUMN reduction_palier INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE produits ADD COLUMN reduction_quantite INTEGER DEFAULT 0")
+    except Exception:
+        pass
 
     # Table : Fournisseurs
     cur.execute("""
@@ -96,12 +108,19 @@ def init_db():
             quantite INTEGER NOT NULL,
             prix_unitaire REAL NOT NULL,
             prix_total REAL NOT NULL,
+            paquets_offerts INTEGER DEFAULT 0,
             date_vente TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             client TEXT,
             notes TEXT,
             FOREIGN KEY (produit_id) REFERENCES produits(id)
         )
     """)
+
+    # Migration : ajouter colonne paquets_offerts si absente
+    try:
+        cur.execute("ALTER TABLE ventes ADD COLUMN paquets_offerts INTEGER DEFAULT 0")
+    except Exception:
+        pass
 
     # Table : Mouvements de stock (entrées/sorties)
     cur.execute("""

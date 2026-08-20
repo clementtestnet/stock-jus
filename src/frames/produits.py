@@ -7,6 +7,7 @@ from tkinter import ttk, messagebox
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from database import get_connection
+from config import MONNAIE, UNITE_DEFAULT
 
 
 class ProduitsFrame(tk.Frame):
@@ -113,10 +114,12 @@ class FormProduit(tk.Toplevel):
         fields = [
             ("Nom du produit *", "nom"),
             ("Description", "desc"),
-            ("Unité (ex: bouteille)", "unite"),
-            ("Prix de vente unitaire (CDF)", "prix"),
+            (f"Unité (ex: {UNITE_DEFAULT})", "unite"),
+            (f"Prix de vente unitaire ({MONNAIE})", "prix"),
             ("Stock initial", "stock"),
             ("Stock minimum (alerte)", "stock_min"),
+            ("Réduction : palier (nb paquets)", "reduction_palier"),
+            ("Réduction : paquets offerts", "reduction_quantite"),
         ]
         self.vars = {}
         for i, (label, key) in enumerate(fields):
@@ -128,10 +131,12 @@ class FormProduit(tk.Toplevel):
                 row=i, column=1, padx=10, pady=6)
 
         # Defaults
-        self.vars["unite"].set("bouteille")
+        self.vars["unite"].set(UNITE_DEFAULT)
         self.vars["prix"].set("0")
         self.vars["stock"].set("0")
         self.vars["stock_min"].set("10")
+        self.vars["reduction_palier"].set("0")
+        self.vars["reduction_quantite"].set("0")
 
         tk.Button(self, text="💾 Enregistrer", bg="#4a90d9", fg="white",
                   font=("Arial", 10, "bold"), relief="flat", padx=15, pady=6,
@@ -139,7 +144,7 @@ class FormProduit(tk.Toplevel):
 
     def _load(self):
         conn = get_connection()
-        r = conn.execute("SELECT nom, description, unite, prix_vente, stock_actuel, stock_minimum FROM produits WHERE id=?",
+        r = conn.execute("SELECT nom, description, unite, prix_vente, stock_actuel, stock_minimum, reduction_palier, reduction_quantite FROM produits WHERE id=?",
                          (self.produit_id,)).fetchone()
         conn.close()
         if r:
@@ -149,6 +154,8 @@ class FormProduit(tk.Toplevel):
             self.vars["prix"].set(str(r[3]))
             self.vars["stock"].set(str(r[4]))
             self.vars["stock_min"].set(str(r[5]))
+            self.vars["reduction_palier"].set(str(r[6] or 0))
+            self.vars["reduction_quantite"].set(str(r[7] or 0))
 
     def _save(self):
         nom = self.vars["nom"].get().strip()
@@ -159,21 +166,27 @@ class FormProduit(tk.Toplevel):
             prix = float(self.vars["prix"].get())
             stock = int(self.vars["stock"].get())
             stock_min = int(self.vars["stock_min"].get())
+            palier = int(self.vars["reduction_palier"].get())
+            red_qte = int(self.vars["reduction_quantite"].get())
         except ValueError:
-            messagebox.showerror("Erreur", "Prix et stock doivent être des nombres.", parent=self)
+            messagebox.showerror("Erreur", "Prix, stock et réduction doivent être des nombres.", parent=self)
             return
 
         conn = get_connection()
         if self.produit_id:
             conn.execute("""
-                UPDATE produits SET nom=?, description=?, unite=?, prix_vente=?, stock_actuel=?, stock_minimum=?
+                UPDATE produits SET nom=?, description=?, unite=?, prix_vente=?,
+                stock_actuel=?, stock_minimum=?, reduction_palier=?, reduction_quantite=?
                 WHERE id=?
-            """, (nom, self.vars["desc"].get(), self.vars["unite"].get(), prix, stock, stock_min, self.produit_id))
+            """, (nom, self.vars["desc"].get(), self.vars["unite"].get(), prix,
+                  stock, stock_min, palier, red_qte, self.produit_id))
         else:
             conn.execute("""
-                INSERT INTO produits (nom, description, unite, prix_vente, stock_actuel, stock_minimum)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (nom, self.vars["desc"].get(), self.vars["unite"].get(), prix, stock, stock_min))
+                INSERT INTO produits (nom, description, unite, prix_vente, stock_actuel,
+                stock_minimum, reduction_palier, reduction_quantite)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (nom, self.vars["desc"].get(), self.vars["unite"].get(), prix,
+                  stock, stock_min, palier, red_qte))
         conn.commit()
         conn.close()
         if self.on_save:
