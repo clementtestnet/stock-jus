@@ -1,101 +1,126 @@
-# rapports.py
+# rapports.py — MODERNE CustomTkinter
+import customtkinter as ctk
+import tkinter.ttk as ttk
 import tkinter as tk
-from tkinter import ttk
 from datetime import date
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from database import get_connection
 from config import MONNAIE
 
-class RapportsFrame(tk.Frame):
+
+def _style_tree():
+    s = ttk.Style()
+    s.configure("Dark.Treeview",
+        background="#2b2b2b", foreground="white",
+        fieldbackground="#2b2b2b", rowheight=28, font=("Arial",11))
+    s.configure("Dark.Treeview.Heading",
+        background="#1a1a2e", foreground="#7EB3FF",
+        font=("Arial",11,"bold"), relief="flat")
+    s.map("Dark.Treeview", background=[("selected","#1f6aa5")])
+
+
+class RapportsFrame(ctk.CTkFrame):
     def __init__(self, parent, controller):
-        super().__init__(parent, bg="#f0f4f8")
+        super().__init__(parent, corner_radius=0, fg_color="transparent")
         self.controller = controller
+        _style_tree()
         self._build()
 
     def _build(self):
-        tk.Label(self, text="Rapports & Statistiques", font=("Arial",18,"bold"),
-                 bg="#f0f4f8", fg="#1a2940").pack(anchor="w",padx=30,pady=(20,5))
-        nb = ttk.Notebook(self)
-        nb.pack(fill="both",expand=True,padx=30,pady=10)
+        ctk.CTkLabel(self, text="Rapports & Statistiques",
+                     font=ctk.CTkFont(size=22, weight="bold")).pack(
+            anchor="w", padx=30, pady=(22,10))
 
-        self.t1 = tk.Frame(nb, bg="#f0f4f8"); nb.add(self.t1, text="Etat du stock")
-        self.t2 = tk.Frame(nb, bg="#f0f4f8"); nb.add(self.t2, text="Achats par periode")
-        self.t3 = tk.Frame(nb, bg="#f0f4f8"); nb.add(self.t3, text="Top produits")
+        nb = ttk.Notebook(self)
+        nb.pack(fill="both", expand=True, padx=30, pady=5)
+
+        self.t1 = ctk.CTkFrame(nb, corner_radius=0)
+        self.t2 = ctk.CTkFrame(nb, corner_radius=0)
+        self.t3 = ctk.CTkFrame(nb, corner_radius=0)
+        nb.add(self.t1, text="  Etat du stock  ")
+        nb.add(self.t2, text="  Achats par période  ")
+        nb.add(self.t3, text="  Top produits  ")
         self._build_t1(); self._build_t2(); self._build_t3()
 
+    def _make_tree(self, parent, cols, widths, height=13):
+        tree = ttk.Treeview(parent, columns=cols, show="headings",
+                             height=height, style="Dark.Treeview")
+        for c, w in zip(cols, widths):
+            tree.heading(c, text=c); tree.column(c, width=w, anchor="center")
+        tree.pack(fill="both", expand=True, padx=10, pady=5)
+        return tree
+
     def _build_t1(self):
-        tk.Button(self.t1,text="Actualiser",bg="#4a90d9",fg="white",relief="flat",padx=10,
-                  cursor="hand2",command=self._load_t1).pack(anchor="ne",padx=10,pady=10)
-        cols=("Produit","Unite","Stock","Min","Prix","Valeur","Statut")
-        self.tr1=ttk.Treeview(self.t1,columns=cols,show="headings",height=13)
-        for c,w in zip(cols,[180,70,80,70,100,120,80]):
-            self.tr1.heading(c,text=c); self.tr1.column(c,width=w,anchor="center")
-        self.tr1.pack(fill="both",expand=True,padx=10,pady=5)
-        self.tr1.tag_configure("bas",foreground="#e74c3c"); self.tr1.tag_configure("ok",foreground="#27ae60")
-        self.lbl_t1=tk.Label(self.t1,text="",font=("Arial",10,"bold"),bg="#f0f4f8",fg="#1a2940")
-        self.lbl_t1.pack(anchor="e",padx=15,pady=5)
+        ctk.CTkButton(self.t1, text="🔄 Actualiser", width=120, height=32,
+                      command=self._load_t1).pack(anchor="ne", padx=10, pady=8)
+        cols = ("Produit","Unité","Stock","Min","Prix","Valeur","Statut")
+        self.tr1 = self._make_tree(self.t1, cols, [180,70,80,70,100,120,80])
+        self.tr1.tag_configure("bas", foreground="#e74c3c")
+        self.tr1.tag_configure("ok",  foreground="#27ae60")
+        self.lbl_t1 = ctk.CTkLabel(self.t1, text="", font=ctk.CTkFont(size=12, weight="bold"))
+        self.lbl_t1.pack(anchor="e", padx=15, pady=4)
 
     def _load_t1(self):
         for r in self.tr1.get_children(): self.tr1.delete(r)
-        conn=get_connection()
-        rows=conn.execute("SELECT nom,unite,stock_actuel,stock_minimum,prix_vente FROM produits ORDER BY nom").fetchall()
-        conn.close(); total=0
+        conn = get_connection()
+        rows = conn.execute("SELECT nom,unite,stock_actuel,stock_minimum,prix_vente FROM produits ORDER BY nom").fetchall()
+        conn.close(); total = 0
         for r in rows:
-            val=r[2]*r[4]; total+=val; ok=r[2]>r[3]
-            self.tr1.insert("","end",values=(r[0],r[1],r[2],r[3],f"{r[4]:.0f}",f"{val:,.0f}","OK" if ok else "Bas"),tags=("ok",) if ok else ("bas",))
-        self.lbl_t1.config(text=f"Valeur totale stock: {total:,.0f} {MONNAIE}")
+            val = r[2]*r[4]; total += val; ok = r[2] > r[3]
+            self.tr1.insert("","end", values=(
+                r[0],r[1],r[2],r[3],f"{r[4]:.0f}",f"{val:,.0f}","OK" if ok else "Bas"),
+                tags=("ok",) if ok else ("bas",))
+        self.lbl_t1.configure(text=f"💰 Valeur totale stock: {total:,.0f} {MONNAIE}")
 
     def _build_t2(self):
-        ff=tk.Frame(self.t2,bg="#f0f4f8"); ff.pack(fill="x",padx=10,pady=10)
-        tk.Label(ff,text="Du:",bg="#f0f4f8",font=("Arial",9)).pack(side="left")
-        self.d1=tk.StringVar(value=f"{date.today().year}-01-01")
-        tk.Entry(ff,textvariable=self.d1,width=12).pack(side="left",padx=5)
-        tk.Label(ff,text="Au:",bg="#f0f4f8",font=("Arial",9)).pack(side="left",padx=(10,0))
-        self.d2=tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
-        tk.Entry(ff,textvariable=self.d2,width=12).pack(side="left",padx=5)
-        tk.Button(ff,text="Calculer",bg="#27ae60",fg="white",relief="flat",padx=10,
-                  cursor="hand2",command=self._load_t2).pack(side="left",padx=15)
-        cols=("Produit","Nb achats","Quantite totale","Total depense","Prix moyen")
-        self.tr2=ttk.Treeview(self.t2,columns=cols,show="headings",height=13)
-        for c,w in zip(cols,[200,90,120,140,120]):
-            self.tr2.heading(c,text=c); self.tr2.column(c,width=w,anchor="center")
-        self.tr2.pack(fill="both",expand=True,padx=10)
-        self.lbl_t2=tk.Label(self.t2,text="",font=("Arial",10,"bold"),bg="#f0f4f8",fg="#e74c3c")
-        self.lbl_t2.pack(anchor="e",padx=15,pady=5)
+        ff = ctk.CTkFrame(self.t2, fg_color="transparent")
+        ff.pack(fill="x", padx=10, pady=8)
+        ctk.CTkLabel(ff, text="Du :", font=ctk.CTkFont(size=12)).pack(side="left")
+        self.d1 = tk.StringVar(value=f"{date.today().year}-01-01")
+        ctk.CTkEntry(ff, textvariable=self.d1, width=110, height=32).pack(side="left", padx=6)
+        ctk.CTkLabel(ff, text="Au :", font=ctk.CTkFont(size=12)).pack(side="left", padx=(10,0))
+        self.d2 = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
+        ctk.CTkEntry(ff, textvariable=self.d2, width=110, height=32).pack(side="left", padx=6)
+        ctk.CTkButton(ff, text="📊 Calculer", width=110, height=32,
+                      fg_color="#1e8449", hover_color="#145a32",
+                      command=self._load_t2).pack(side="left", padx=12)
+        cols = ("Produit","Nb achats","Qté totale","Total dépensé","Prix moyen")
+        self.tr2 = self._make_tree(self.t2, cols, [200,90,120,140,120])
+        self.lbl_t2 = ctk.CTkLabel(self.t2, text="", font=ctk.CTkFont(size=12, weight="bold"),
+                                    text_color="#e74c3c")
+        self.lbl_t2.pack(anchor="e", padx=15, pady=4)
 
     def _load_t2(self):
         for r in self.tr2.get_children(): self.tr2.delete(r)
-        conn=get_connection()
-        rows=conn.execute("""SELECT p.nom,COUNT(a.id),SUM(a.quantite),SUM(a.prix_total),
+        conn = get_connection()
+        rows = conn.execute("""SELECT p.nom,COUNT(a.id),SUM(a.quantite),SUM(a.prix_total),
             ROUND(SUM(a.prix_total)/SUM(a.quantite),2) FROM achats a JOIN produits p ON a.produit_id=p.id
             WHERE a.date_achat BETWEEN ? AND ? GROUP BY p.id ORDER BY SUM(a.prix_total) DESC""",
             (self.d1.get(), self.d2.get()+" 23:59:59")).fetchall()
         conn.close(); total=0
         for r in rows:
-            self.tr2.insert("","end",values=(r[0],r[1],r[2],f"{r[3]:,.0f} {MONNAIE}",f"{r[4]:.0f}"))
-            total+=r[3]
-        self.lbl_t2.config(text=f"Total depenses: {total:,.0f} {MONNAIE}")
+            self.tr2.insert("","end", values=(r[0],r[1],r[2],f"{r[3]:,.0f} {MONNAIE}",f"{r[4]:.0f}"))
+            total += r[3]
+        self.lbl_t2.configure(text=f"💸 Total dépenses: {total:,.0f} {MONNAIE}")
 
     def _build_t3(self):
-        tk.Button(self.t3,text="Actualiser",bg="#4a90d9",fg="white",relief="flat",padx=10,
-                  cursor="hand2",command=self._load_t3).pack(anchor="ne",padx=10,pady=10)
-        cols=("Rang","Produit","Total achete","Total depense","Derniere livraison")
-        self.tr3=ttk.Treeview(self.t3,columns=cols,show="headings",height=13)
-        for c,w in zip(cols,[60,220,140,160,140]):
-            self.tr3.heading(c,text=c); self.tr3.column(c,width=w,anchor="center")
-        self.tr3.pack(fill="both",expand=True,padx=10,pady=5)
+        ctk.CTkButton(self.t3, text="🔄 Actualiser", width=120, height=32,
+                      command=self._load_t3).pack(anchor="ne", padx=10, pady=8)
+        cols = ("Rang","Produit","Total acheté","Total dépensé","Dernière livraison")
+        self.tr3 = self._make_tree(self.t3, cols, [60,220,140,160,140])
 
     def _load_t3(self):
         for r in self.tr3.get_children(): self.tr3.delete(r)
-        conn=get_connection()
-        rows=conn.execute("""SELECT p.nom,SUM(a.quantite),SUM(a.prix_total),MAX(a.date_achat)
+        conn = get_connection()
+        rows = conn.execute("""SELECT p.nom,SUM(a.quantite),SUM(a.prix_total),MAX(a.date_achat)
             FROM achats a JOIN produits p ON a.produit_id=p.id
             GROUP BY p.id ORDER BY SUM(a.quantite) DESC LIMIT 20""").fetchall()
         conn.close()
-        for i,r in enumerate(rows,1):
-            m=["1er","2eme","3eme"][i-1] if i<=3 else str(i)
-            self.tr3.insert("","end",values=(m,r[0],r[1],f"{r[2]:,.0f} {MONNAIE}",str(r[3])[:10]))
+        medals = ["🥇","🥈","🥉"]
+        for i, r in enumerate(rows, 1):
+            m = medals[i-1] if i <= 3 else str(i)
+            self.tr3.insert("","end", values=(m,r[0],r[1],f"{r[2]:,.0f} {MONNAIE}",str(r[3])[:10]))
 
     def refresh(self):
         self._load_t1(); self._load_t3()

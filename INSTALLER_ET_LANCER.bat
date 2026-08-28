@@ -18,8 +18,8 @@ if errorlevel 1 (
     echo  [1/3] Python OK
 )
 
-echo  [2/3] Installation ReportLab...
-pip install reportlab --quiet
+echo  [2/3] Installation des librairies...
+pip install reportlab customtkinter --quiet
 
 echo  [3/3] Lancement du logiciel...
 echo.

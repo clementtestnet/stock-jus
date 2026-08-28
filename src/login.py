@@ -1,11 +1,13 @@
-# login.py — Ecran de connexion
+# login.py — Ecran de connexion MODERNE avec CustomTkinter
 
-import tkinter as tk
-from tkinter import messagebox
+import customtkinter as ctk
 import hashlib, sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import get_connection, init_db
 from config import BOUTIQUE_NOM
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 def verifier_login(username, password):
     h = hashlib.sha256(password.encode()).hexdigest()
@@ -16,72 +18,80 @@ def verifier_login(username, password):
     conn.close()
     return row
 
-class LoginWindow(tk.Tk):
+
+class LoginWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title(f"{BOUTIQUE_NOM} — Connexion")
-        self.geometry("400x460")
+        self.geometry("440x560")
         self.resizable(False, False)
-        self.configure(bg="#1a2940")
         self.user_info = None
         self._center()
         self._build()
 
     def _center(self):
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  - 400) // 2
-        y = (self.winfo_screenheight() - 460) // 2
-        self.geometry(f"400x460+{x}+{y}")
+        x = (self.winfo_screenwidth()  - 440) // 2
+        y = (self.winfo_screenheight() - 560) // 2
+        self.geometry(f"440x560+{x}+{y}")
 
     def _build(self):
-        tk.Label(self, text="🧃", font=("Arial", 48), bg="#1a2940", fg="white").pack(pady=(35,5))
-        tk.Label(self, text=BOUTIQUE_NOM, font=("Arial", 20, "bold"),
-                 bg="#1a2940", fg="white").pack()
-        tk.Label(self, text="Gestion de Stock", font=("Arial", 9),
-                 bg="#1a2940", fg="#8899aa").pack(pady=(0,25))
+        # Logo + titre
+        ctk.CTkLabel(self, text="🧃", font=ctk.CTkFont(size=56)).pack(pady=(40, 5))
+        ctk.CTkLabel(self, text=BOUTIQUE_NOM,
+                     font=ctk.CTkFont(size=26, weight="bold")).pack()
+        ctk.CTkLabel(self, text="Gestion de Stock",
+                     font=ctk.CTkFont(size=13),
+                     text_color="gray").pack(pady=(2, 30))
 
-        card = tk.Frame(self, bg="white", padx=25, pady=20)
-        card.pack(fill="x", padx=30)
+        # Carte login
+        frame = ctk.CTkFrame(self, corner_radius=16)
+        frame.pack(fill="x", padx=40, pady=5)
 
-        tk.Label(card, text="Nom d'utilisateur", font=("Arial", 9, "bold"),
-                 bg="white", fg="#334455", anchor="w").pack(fill="x")
-        self.uvar = tk.StringVar()
-        ue = tk.Entry(card, textvariable=self.uvar, font=("Arial", 11),
-                      relief="solid", bd=1)
-        ue.pack(fill="x", pady=(3,10), ipady=6)
-        ue.focus()
+        ctk.CTkLabel(frame, text="Nom d'utilisateur",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     anchor="w").pack(fill="x", padx=25, pady=(20, 3))
+        self.uentry = ctk.CTkEntry(frame, placeholder_text="admin",
+                                    height=42, corner_radius=8,
+                                    font=ctk.CTkFont(size=13))
+        self.uentry.pack(fill="x", padx=25, pady=(0, 12))
+        self.uentry.focus()
 
-        tk.Label(card, text="Mot de passe", font=("Arial", 9, "bold"),
-                 bg="white", fg="#334455", anchor="w").pack(fill="x")
-        self.pvar = tk.StringVar()
-        pe = tk.Entry(card, textvariable=self.pvar, show="*",
-                      font=("Arial", 11), relief="solid", bd=1)
-        pe.pack(fill="x", pady=(3,5), ipady=6)
-        pe.bind("<Return>", lambda e: self._login())
+        ctk.CTkLabel(frame, text="Mot de passe",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     anchor="w").pack(fill="x", padx=25, pady=(0, 3))
+        self.pentry = ctk.CTkEntry(frame, placeholder_text="••••••••",
+                                    show="*", height=42, corner_radius=8,
+                                    font=ctk.CTkFont(size=13))
+        self.pentry.pack(fill="x", padx=25, pady=(0, 5))
+        self.pentry.bind("<Return>", lambda e: self._login())
 
-        self.err = tk.Label(card, text="", font=("Arial", 9),
-                             bg="white", fg="#e74c3c")
-        self.err.pack(fill="x", pady=(0,5))
+        self.err_lbl = ctk.CTkLabel(frame, text="",
+                                     font=ctk.CTkFont(size=11),
+                                     text_color="#ff6b6b")
+        self.err_lbl.pack(pady=(0, 5))
 
-        tk.Button(card, text="SE CONNECTER", font=("Arial", 11, "bold"),
-                  bg="#4a90d9", fg="white", relief="flat",
-                  cursor="hand2", command=self._login).pack(fill="x", ipady=8)
+        ctk.CTkButton(frame, text="SE CONNECTER",
+                      height=44, corner_radius=10,
+                      font=ctk.CTkFont(size=14, weight="bold"),
+                      command=self._login).pack(fill="x", padx=25, pady=(0, 20))
 
-        tk.Label(self, text="admin/admin123  |  employe1/employe1",
-                 font=("Arial", 8), bg="#1a2940", fg="#445566").pack(pady=(15,0))
-        tk.Label(self, text="employe2/employe2  |  employe3/employe3",
-                 font=("Arial", 8), bg="#1a2940", fg="#445566").pack()
+        # Comptes par défaut
+        ctk.CTkLabel(self, text="admin/admin123  •  employe1/employe1",
+                     font=ctk.CTkFont(size=10), text_color="gray").pack(pady=(10, 0))
+        ctk.CTkLabel(self, text="employe2/employe2  •  employe3/employe3",
+                     font=ctk.CTkFont(size=10), text_color="gray").pack()
 
     def _login(self):
-        u = self.uvar.get().strip()
-        p = self.pvar.get().strip()
+        u = self.uentry.get().strip()
+        p = self.pentry.get().strip()
         if not u or not p:
-            self.err.config(text="Remplissez tous les champs.")
+            self.err_lbl.configure(text="⚠ Remplissez tous les champs.")
             return
         result = verifier_login(u, p)
         if result:
             self.user_info = {"id": result[0], "nom": result[1], "role": result[2]}
             self.destroy()
         else:
-            self.err.config(text="Identifiants incorrects.")
-            self.pvar.set("")
+            self.err_lbl.configure(text="❌ Identifiants incorrects.")
+            self.pentry.delete(0, "end")

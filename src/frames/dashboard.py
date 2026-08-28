@@ -1,81 +1,108 @@
-# dashboard.py
-import tkinter as tk
-from tkinter import ttk
+# dashboard.py — MODERNE CustomTkinter
+import customtkinter as ctk
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from database import get_connection
 from config import MONNAIE, BOUTIQUE_NOM
 
-class DashboardFrame(tk.Frame):
+
+class DashboardFrame(ctk.CTkFrame):
     def __init__(self, parent, controller):
-        super().__init__(parent, bg="#f0f4f8")
+        super().__init__(parent, corner_radius=0, fg_color="transparent")
         self.controller = controller
         self._build()
 
     def _build(self):
-        tk.Label(self, text="Tableau de bord", font=("Arial", 18, "bold"),
-                 bg="#f0f4f8", fg="#1a2940").pack(anchor="w", padx=30, pady=(20,3))
-        tk.Label(self, text=f"Bienvenue sur {BOUTIQUE_NOM}", font=("Arial", 10),
-                 bg="#f0f4f8", fg="#667788").pack(anchor="w", padx=30, pady=(0,15))
+        # Titre
+        ctk.CTkLabel(self, text="Tableau de bord",
+                     font=ctk.CTkFont(size=22, weight="bold")).pack(
+            anchor="w", padx=30, pady=(22, 2))
+        ctk.CTkLabel(self, text=f"Bienvenue sur {BOUTIQUE_NOM}",
+                     font=ctk.CTkFont(size=12), text_color="gray").pack(
+            anchor="w", padx=30, pady=(0, 18))
 
-        self.cards_frame = tk.Frame(self, bg="#f0f4f8")
-        self.cards_frame.pack(fill="x", padx=30)
-        self.c_produits    = self._card(self.cards_frame, "Produits",          "0", "#4a90d9", "Produits")
-        self.c_stock       = self._card(self.cards_frame, f"Total en stock",   "0", "#27ae60", "Stock")
-        self.c_alertes     = self._card(self.cards_frame, "Stock bas",         "0", "#e74c3c", "Alertes")
-        self.c_fournisseurs= self._card(self.cards_frame, "Fournisseurs",      "0", "#f39c12", "Fourn.")
-        for c in [self.c_produits, self.c_stock, self.c_alertes, self.c_fournisseurs]:
-            c.pack(side="left", padx=8, pady=8, expand=True, fill="x")
+        # Cartes stats
+        self.cards_row = ctk.CTkFrame(self, fg_color="transparent")
+        self.cards_row.pack(fill="x", padx=30)
 
-        tk.Label(self, text="Derniers approvisionnements", font=("Arial", 13, "bold"),
-                 bg="#f0f4f8", fg="#1a2940").pack(anchor="w", padx=30, pady=(15,5))
-        cols = ("Date","Produit","Fournisseur","Quantite","Total")
-        self.tree = ttk.Treeview(self, columns=cols, show="headings", height=7)
-        for c, w in zip(cols, [130,180,150,90,130]):
-            self.tree.heading(c, text=c); self.tree.column(c, width=w, anchor="center")
-        self.tree.pack(fill="x", padx=30, pady=3)
+        card_data = [
+            ("Produits",      "0", "#1f6aa5", "📦"),
+            ("Total en stock","0", "#1e8449", "📊"),
+            ("Stock bas",     "0", "#c0392b", "⚠️"),
+            ("Fournisseurs",  "0", "#b7770d", "🏭"),
+        ]
+        self._card_vals = []
+        for title, val, color, icon in card_data:
+            card = ctk.CTkFrame(self.cards_row, corner_radius=14)
+            card.pack(side="left", expand=True, fill="x", padx=8, pady=8)
+            ctk.CTkLabel(card, text=icon, font=ctk.CTkFont(size=22)).pack(pady=(16, 4))
+            lv = ctk.CTkLabel(card, text=val, font=ctk.CTkFont(size=28, weight="bold"))
+            lv.pack()
+            ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=11),
+                         text_color="gray").pack(pady=(2, 14))
+            self._card_vals.append(lv)
 
-        tk.Label(self, text="Produits en stock bas", font=("Arial", 12, "bold"),
-                 bg="#f0f4f8", fg="#e74c3c").pack(anchor="w", padx=30, pady=(12,5))
-        cols2 = ("Produit","Stock actuel","Minimum")
-        self.tree2 = ttk.Treeview(self, columns=cols2, show="headings", height=4)
-        for c, w in zip(cols2, [220,140,140]):
-            self.tree2.heading(c, text=c); self.tree2.column(c, width=w, anchor="center")
-        self.tree2.pack(fill="x", padx=30, pady=3)
-        self.tree2.tag_configure("bas", foreground="#e74c3c")
+        # Derniers approvisionnements
+        ctk.CTkLabel(self, text="Derniers approvisionnements",
+                     font=ctk.CTkFont(size=15, weight="bold")).pack(
+            anchor="w", padx=30, pady=(18, 4))
+        self.tree1 = self._make_table(
+            ("Date","Produit","Fournisseur","Quantité","Total"),
+            (130, 180, 150, 90, 140), height=7)
 
-    def _card(self, parent, title, value, color, icon):
-        f = tk.Frame(parent, bg=color)
-        tk.Label(f, text=icon, font=("Arial", 11), bg=color, fg="white").pack(pady=(10,0))
-        lv = tk.Label(f, text=value, font=("Arial", 20, "bold"), bg=color, fg="white")
-        lv.pack()
-        tk.Label(f, text=title, font=("Arial", 8), bg=color, fg="#e8f4fd").pack(pady=(0,10))
-        f._val = lv
-        return f
+        # Produits stock bas
+        ctk.CTkLabel(self, text="Produits en stock bas",
+                     font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color="#e74c3c").pack(
+            anchor="w", padx=30, pady=(14, 4))
+        self.tree2 = self._make_table(
+            ("Produit","Stock actuel","Minimum"),
+            (220, 140, 140), height=4)
+
+    def _make_table(self, cols, widths, height=6):
+        import tkinter.ttk as ttk
+        import tkinter as tk
+        style = ttk.Style()
+        style.configure("Dark.Treeview",
+            background="#2b2b2b", foreground="white",
+            fieldbackground="#2b2b2b", rowheight=28,
+            font=("Arial", 11))
+        style.configure("Dark.Treeview.Heading",
+            background="#1a1a2e", foreground="#7EB3FF",
+            font=("Arial", 11, "bold"), relief="flat")
+        style.map("Dark.Treeview", background=[("selected","#1f6aa5")])
+
+        tree = ttk.Treeview(self, columns=cols, show="headings",
+                            height=height, style="Dark.Treeview")
+        for c, w in zip(cols, widths):
+            tree.heading(c, text=c)
+            tree.column(c, width=w, anchor="center")
+        tree.pack(fill="x", padx=30, pady=4)
+        return tree
 
     def refresh(self):
         conn = get_connection()
-        nb_p   = conn.execute("SELECT COUNT(*) FROM produits").fetchone()[0]
-        total  = conn.execute("SELECT SUM(stock_actuel) FROM produits").fetchone()[0] or 0
-        alrt   = conn.execute("SELECT COUNT(*) FROM produits WHERE stock_actuel<=stock_minimum").fetchone()[0]
-        nb_f   = conn.execute("SELECT COUNT(*) FROM fournisseurs").fetchone()[0]
-        self.c_produits._val.config(text=str(nb_p))
-        self.c_stock._val.config(text=str(total))
-        self.c_alertes._val.config(text=str(alrt))
-        self.c_fournisseurs._val.config(text=str(nb_f))
+        nb_p  = conn.execute("SELECT COUNT(*) FROM produits").fetchone()[0]
+        total = conn.execute("SELECT SUM(stock_actuel) FROM produits").fetchone()[0] or 0
+        alrt  = conn.execute(
+            "SELECT COUNT(*) FROM produits WHERE stock_actuel<=stock_minimum").fetchone()[0]
+        nb_f  = conn.execute("SELECT COUNT(*) FROM fournisseurs").fetchone()[0]
+        for lv, val in zip(self._card_vals, [nb_p, total, alrt, nb_f]):
+            lv.configure(text=str(val))
 
-        for r in self.tree.get_children(): self.tree.delete(r)
+        for r in self.tree1.get_children(): self.tree1.delete(r)
         for r in conn.execute("""
             SELECT a.date_achat,p.nom,COALESCE(f.nom,'-'),a.quantite,a.prix_total
             FROM achats a JOIN produits p ON a.produit_id=p.id
             LEFT JOIN fournisseurs f ON a.fournisseur_id=f.id
             ORDER BY a.date_achat DESC LIMIT 8
         """).fetchall():
-            self.tree.insert("","end", values=(str(r[0])[:16],r[1],r[2],r[3],f"{r[4]:,.0f} {MONNAIE}"))
+            self.tree1.insert("", "end", values=(
+                str(r[0])[:16], r[1], r[2], r[3], f"{r[4]:,.0f} {MONNAIE}"))
 
         for r in self.tree2.get_children(): self.tree2.delete(r)
         for r in conn.execute(
             "SELECT nom,stock_actuel,stock_minimum FROM produits WHERE stock_actuel<=stock_minimum"
         ).fetchall():
-            self.tree2.insert("","end", values=(r[0],r[1],r[2]), tags=("bas",))
+            self.tree2.insert("", "end", values=(r[0], r[1], r[2]))
         conn.close()
