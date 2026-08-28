@@ -26,14 +26,15 @@ class DashboardFrame(ctk.CTkFrame):
         self.cards_row.pack(fill="x", padx=30)
 
         card_data = [
-            ("Produits",      "0", "#1f6aa5", "📦"),
-            ("Total en stock","0", "#1e8449", "📊"),
-            ("Stock bas",     "0", "#c0392b", "⚠️"),
-            ("Fournisseurs",  "0", "#b7770d", "🏭"),
+            ("Produits",      "0", ("#1565C0","#1f6aa5"), "📦"),
+            ("Total en stock","0", ("#1e7e34","#1e8449"), "📊"),
+            ("Stock bas",     "0", ("#b71c1c","#c0392b"), "⚠️"),
+            ("Ventes du jour","0", ("#6a1b9a","#7d3c98"), "💰"),
         ]
         self._card_vals = []
-        for title, val, color, icon in card_data:
-            card = ctk.CTkFrame(self.cards_row, corner_radius=14)
+        for title, val, colors, icon in card_data:
+            card = ctk.CTkFrame(self.cards_row, corner_radius=14,
+                                fg_color=colors)
             card.pack(side="left", expand=True, fill="x", padx=8, pady=8)
             ctk.CTkLabel(card, text=icon, font=ctk.CTkFont(size=22)).pack(pady=(16, 4))
             lv = ctk.CTkLabel(card, text=val, font=ctk.CTkFont(size=28, weight="bold"))
@@ -86,8 +87,10 @@ class DashboardFrame(ctk.CTkFrame):
         total = conn.execute("SELECT SUM(stock_actuel) FROM produits").fetchone()[0] or 0
         alrt  = conn.execute(
             "SELECT COUNT(*) FROM produits WHERE stock_actuel<=stock_minimum").fetchone()[0]
-        nb_f  = conn.execute("SELECT COUNT(*) FROM fournisseurs").fetchone()[0]
-        for lv, val in zip(self._card_vals, [nb_p, total, alrt, nb_f]):
+        today = __import__('datetime').date.today().strftime("%Y-%m-%d")
+        ventes_j = conn.execute(
+            "SELECT COUNT(*) FROM ventes WHERE DATE(date_vente)=?", (today,)).fetchone()[0]
+        for lv, val in zip(self._card_vals, [nb_p, total, alrt, ventes_j]):
             lv.configure(text=str(val))
 
         for r in self.tree1.get_children(): self.tree1.delete(r)

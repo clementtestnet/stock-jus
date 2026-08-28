@@ -8,7 +8,6 @@ from config import BOUTIQUE_NOM
 from frames.dashboard    import DashboardFrame
 from frames.produits     import ProduitsFrame
 from frames.achats       import AchatsFrame
-from frames.fournisseurs import FournisseursFrame
 from frames.historique   import HistoriqueFrame
 from frames.rapports     import RapportsFrame
 from frames.ventes       import VentesFrame
