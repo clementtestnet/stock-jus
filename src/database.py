@@ -81,6 +81,21 @@ def init_db():
         FOREIGN KEY (produit_id) REFERENCES produits(id)
     )""")
 
+    c.execute("""CREATE TABLE IF NOT EXISTS sorties (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        produit_id INTEGER NOT NULL,
+        quantite INTEGER NOT NULL,
+        destination TEXT NOT NULL,
+        motif TEXT,
+        date_sortie TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
+        FOREIGN KEY (produit_id) REFERENCES produits(id)
+    )""")
+
+    # Migration
+    try: c.execute("ALTER TABLE sorties ADD COLUMN destination TEXT")
+    except: pass
+
     c.execute("""CREATE TABLE IF NOT EXISTS mouvements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         produit_id INTEGER NOT NULL,
