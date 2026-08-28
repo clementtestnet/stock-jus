@@ -34,10 +34,11 @@ class VenteRapideFrame(ctk.CTkFrame):
 
     def __init__(self, parent, controller):
         super().__init__(parent, corner_radius=0, fg_color="transparent")
-        self.controller     = controller
-        self._all_produits  = {}   # nom -> {id, prix, stock, palier, qte_offerte}
-        self._panier        = []   # liste de dicts ligne
+        self.controller      = controller
+        self._all_produits   = {}   # nom -> {id, prix, stock, palier, qte_offerte}
+        self._panier         = []   # liste de dicts ligne
         self._last_vente_ids = []
+        self._selecting      = False  # verrou : empeche trace de reset pendant selection
         _style_tree()
         self._build()
 
@@ -223,6 +224,9 @@ class VenteRapideFrame(ctk.CTkFrame):
     # ─── Recherche live ─────────────────────────────────────────────────────
 
     def _on_search(self, *_):
+        # Si on est en train de sélectionner depuis la liste, ne pas réinitialiser
+        if self._selecting:
+            return
         q = self.search_var.get().strip().lower()
         self._selected_produit = None
         self.prix_var.set("—")
@@ -258,10 +262,11 @@ class VenteRapideFrame(ctk.CTkFrame):
         idx = self._suggest_lb.curselection()
         if not idx:
             return
-        # Le texte affiché contient le nom original + infos
         line = self._suggest_lb.get(idx[0])
         nom  = line.split("  (")[0]
+        self._selecting = True      # verrou ON
         self._select_produit(nom)
+        self._selecting = False     # verrou OFF
 
     def _select_produit(self, nom):
         p = self._all_produits.get(nom)

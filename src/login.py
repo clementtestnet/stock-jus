@@ -76,12 +76,6 @@ class LoginWindow(ctk.CTk):
                       font=ctk.CTkFont(size=14, weight="bold"),
                       command=self._login).pack(fill="x", padx=25, pady=(0, 20))
 
-        # Comptes par défaut
-        ctk.CTkLabel(self, text="admin/admin123  •  employe1/employe1",
-                     font=ctk.CTkFont(size=10), text_color="gray").pack(pady=(10, 0))
-        ctk.CTkLabel(self, text="employe2/employe2  •  employe3/employe3",
-                     font=ctk.CTkFont(size=10), text_color="gray").pack()
-
     def _login(self):
         u = self.uentry.get().strip()
         p = self.pentry.get().strip()
