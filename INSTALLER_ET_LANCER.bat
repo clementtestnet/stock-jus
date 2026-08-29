@@ -1,33 +1,22 @@
 @echo off
 chcp 65001 >nul
-title Stock Jus — Lancement
+title Stock Jus — Lancer
 
-:: Vérifier si le .exe compilé existe
+:: Aller dans le dossier du script
+cd /d "%~dp0"
+
+:: Vérifier si l'application compilée existe
 if exist "dist\StockJus\StockJus.exe" (
-    echo  Lancement de Stock Jus (version compilee)...
     start "" "dist\StockJus\StockJus.exe"
     exit /b 0
 )
 
-:: Sinon lancer en Python
-echo  Version compilee non trouvee.
-echo  Lancement en mode Python...
-echo.
-
-:: Vérifier Python
+:: Sinon lancer depuis le code source Python
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo  [ERREUR] Python n'est pas installe.
-    echo  Telechargez Python sur https://python.org
+    echo  Python non trouvé. Téléchargez-le sur https://python.org
     pause & exit /b 1
 )
 
-:: Installer les dépendances si besoin
-echo  Installation des librairies...
-pip install customtkinter reportlab --quiet
-
-:: Lancer l'application
-echo  Demarrage...
-cd src
-python main.py
-cd ..
+pip install customtkinter reportlab pillow --quiet
+python src\main.py

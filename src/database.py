@@ -1,7 +1,10 @@
 # database.py
 import sqlite3, os, hashlib
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "stock_jus.db")
+# Chemin DB : respecte STOCK_JUS_DB si défini (mode .exe PyInstaller),
+# sinon remonte d'un niveau depuis src/
+_default_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "stock_jus.db")
+DB_PATH = os.environ.get("STOCK_JUS_DB", _default_db)
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)

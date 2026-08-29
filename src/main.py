@@ -1,7 +1,21 @@
 # main.py
 import customtkinter as ctk
 import sys, os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# ── Résolution des chemins (code source ET .exe PyInstaller) ──
+if getattr(sys, 'frozen', False):
+    # On tourne dans un .exe PyInstaller
+    _BASE_DIR = sys._MEIPASS
+    _APP_DIR  = os.path.dirname(sys.executable)
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _APP_DIR  = os.path.dirname(_BASE_DIR)
+
+sys.path.insert(0, _BASE_DIR)
+sys.path.insert(0, os.path.join(_BASE_DIR, 'frames'))
+
+# La base de données se trouve toujours à côté de l'exe / du dossier src
+os.environ.setdefault('STOCK_JUS_DB', os.path.join(_APP_DIR, 'stock_jus.db'))
 from database import init_db
 from login import LoginWindow
 from config import BOUTIQUE_NOM

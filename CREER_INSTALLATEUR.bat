@@ -1,48 +1,64 @@
 @echo off
 chcp 65001 >nul
-title Stock Jus — Création installateur
+title Stock Jus — Créer l'installateur Windows
 
 echo.
-echo  ╔══════════════════════════════════════════╗
-echo  ║      CREATION DE L'INSTALLATEUR          ║
-echo  ║      StockJus_Setup_v5.exe                ║
-echo  ╚══════════════════════════════════════════╝
+echo  ╔══════════════════════════════════════════════╗
+echo  ║   🧃 STOCK JUS — CRÉER SETUP.EXE             ║
+echo  ║   Génère un installateur professionnel        ║
+echo  ╚══════════════════════════════════════════════╝
 echo.
 
 :: Vérifier que le .exe compilé existe
 if not exist "dist\StockJus\StockJus.exe" (
-    echo  [ERREUR] Le .exe n'a pas encore ete compile.
-    echo  Lancez d'abord COMPILER_EXE.bat !
+    echo  ❌ dist\StockJus\StockJus.exe introuvable !
+    echo.
+    echo  Lancez d'abord COMPILER_EXE.bat pour compiler l'application.
     pause & exit /b 1
 )
+echo  ✅ Application compilée détectée
 
-:: Vérifier Inno Setup
-set INNO="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if not exist %INNO% (
-    set INNO="C:\Program Files\Inno Setup 6\ISCC.exe"
-)
-if not exist %INNO% (
-    echo  [ERREUR] Inno Setup n'est pas installe.
-    echo  Telechargez-le sur : https://jrsoftware.org/isdl.php
-    start https://jrsoftware.org/isdl.php
+:: Chercher Inno Setup
+set ISCC=
+if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+if exist "C:\Program Files\Inno Setup 6\ISCC.exe"       set ISCC=C:\Program Files\Inno Setup 6\ISCC.exe
+if exist "C:\Program Files (x86)\Inno Setup 5\ISCC.exe" set ISCC=C:\Program Files (x86)\Inno Setup 5\ISCC.exe
+
+if "%ISCC%"=="" (
+    echo.
+    echo  ❌ Inno Setup introuvable sur ce PC.
+    echo.
+    echo  Téléchargez-le gratuitement :
+    echo  👉  https://jrsoftware.org/isdl.php
+    echo.
+    echo  Après installation, relancez ce script.
     pause & exit /b 1
 )
+echo  ✅ Inno Setup trouvé
 
-mkdir installer 2>nul
-
-echo  Compilation de l'installateur...
-%INNO% stock_jus_setup.iss
+:: Compiler l'installateur
+echo.
+echo  Création du setup.exe en cours...
+"%ISCC%" stock_jus_setup.iss
 if errorlevel 1 (
-    echo  [ERREUR] La creation de l'installateur a echoue.
+    echo  ❌ Échec de la création de l'installateur.
     pause & exit /b 1
 )
 
 echo.
-echo  ════════════════════════════════════════════
-echo   Installateur cree avec succes :
-echo   installer\StockJus_Setup_v5.exe
-echo  ════════════════════════════════════════════
+echo  ════════════════════════════════════════════════
+echo    ✅ INSTALLATEUR CRÉÉ AVEC SUCCÈS !
 echo.
-echo  Distribuez ce fichier a vos utilisateurs !
+echo    📁 Fichier : dist\StockJus_Setup_v5.0.exe
 echo.
+echo    Vous pouvez partager ce fichier — il s'installe
+echo    sur n'importe quel PC Windows 10/11 en 2 clics.
+echo  ════════════════════════════════════════════════
+echo.
+
+if exist "dist\StockJus_Setup_v5.0.exe" (
+    set /p OUVRIR="  Ouvrir le dossier dist\ maintenant ? (o/n) : "
+    if /i "!OUVRIR!"=="o" explorer dist\
+)
+
 pause
