@@ -313,9 +313,16 @@ class VenteRapideFrame(ctk.CTkFrame):
         except ValueError:
             self.add_msg.configure(text="⚠ Quantité invalide.", text_color="#e74c3c")
             return
-        if qty > p["stock"]:
+
+        # Stock dispo = stock réel - déjà dans le panier pour ce produit
+        deja_reserve = sum(
+            l["qty"] + l["offerts"] for l in self._panier if l["pid"] == p["id"]
+        )
+        stock_dispo = p["stock"] - deja_reserve
+        if qty > stock_dispo:
             self.add_msg.configure(
-                text=f"⚠ Stock insuffisant ({p['stock']})", text_color="#e74c3c")
+                text=f"⚠ Stock insuffisant (dispo: {stock_dispo})",
+                text_color="#e74c3c")
             return
 
         red = calculer_reduction(qty, p["palier"], p["qte_offerte"], p["prix"])
@@ -377,32 +384,47 @@ class VenteRapideFrame(ctk.CTkFrame):
         client = self.client_var.get() or None
         notes  = self.notes_var.get() or None
         conn   = get_connection()
-        # Vérif stocks
+
+        # Vérif stocks en temps réel avant tout
         for l in self._panier:
-            stock = conn.execute(
-                "SELECT stock_actuel FROM produits WHERE id=?", (l["pid"],)).fetchone()[0]
-            if l["qty"] > stock:
+            row = conn.execute(
+                "SELECT stock_actuel FROM produits WHERE id=?", (l["pid"],)).fetchone()
+            if row is None:
+                conn.close()
+                messagebox.showerror("Erreur", f"Produit {l['nom']} introuvable.")
+                return
+            stock_reel = row[0]
+            # prendre en compte ce qu'on va déduire pour les lignes précédentes du même produit
+            deja = sum(
+                x["qty"] + x["offerts"]
+                for x in self._panier[:self._panier.index(l)]
+                if x["pid"] == l["pid"]
+            )
+            if l["qty"] + l["offerts"] > stock_reel - deja:
                 conn.close()
                 messagebox.showerror(
                     "Stock insuffisant",
-                    f"{l['nom']}: stock={stock}, demandé={l['qty']}")
+                    f"{l['nom']}: stock={stock_reel - deja}, demandé={l['qty']}")
                 return
 
         self._last_vente_ids = []
         for l in self._panier:
             cur = conn.execute("""
-                INSERT INTO ventes (produit_id,quantite,prix_unitaire,prix_total,
-                                    paquets_offerts,date_vente,client,notes)
-                VALUES (?,?,?,?,?,?,?,?)
-            """, (l["pid"], l["qty"], l["prix"], l["total"],
+                INSERT INTO ventes (produit_id, produit_nom, quantite, prix_unitaire, prix_total,
+                                    paquets_offerts, date_vente, client, notes)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            """, (l["pid"], l["nom"], l["qty"], l["prix"], l["total"],
                   l["offerts"], date_v, client, notes))
             self._last_vente_ids.append(cur.lastrowid)
+            # Mise à jour stock — jamais négatif
+            conn.execute("""
+                UPDATE produits
+                SET stock_actuel = MAX(0, stock_actuel - ?)
+                WHERE id = ?
+            """, (l["qty"] + l["offerts"], l["pid"]))
             conn.execute(
-                "UPDATE produits SET stock_actuel=stock_actuel-? WHERE id=?",
-                (l["qty"] + l["offerts"], l["pid"]))
-            conn.execute(
-                "INSERT INTO mouvements (produit_id,type,quantite,motif) VALUES (?,?,?,?)",
-                (l["pid"], "sortie", l["qty"]+l["offerts"], "Vente admin"))
+                "INSERT INTO mouvements (produit_id, type, quantite, motif) VALUES (?,?,?,?)",
+                (l["pid"], "sortie", l["qty"] + l["offerts"], "Vente admin"))
         conn.commit(); conn.close()
 
         total_global = sum(l["total"] for l in self._panier)

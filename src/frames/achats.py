@@ -136,8 +136,8 @@ class AchatsFrame(ctk.CTkFrame):
         date  = self.vars["date"].get() or datetime.now().strftime("%Y-%m-%d")
         conn  = get_connection()
         conn.execute(
-            "INSERT INTO achats (produit_id,fournisseur_id,quantite,prix_unitaire,prix_total,date_achat,notes) VALUES (?,?,?,?,?,?,?)",
-            (pid, None, qty, prix, total, date, self.vars["notes"].get()))
+            "INSERT INTO achats (produit_id, produit_nom, fournisseur_id, quantite, prix_unitaire, prix_total, date_achat, notes) VALUES (?,?,?,?,?,?,?,?)",
+            (pid, pnom, None, qty, prix, total, date, self.vars["notes"].get()))
         conn.execute("UPDATE produits SET stock_actuel=stock_actuel+? WHERE id=?", (qty, pid))
         conn.execute("INSERT INTO mouvements (produit_id,type,quantite,motif) VALUES (?,?,?,?)",
                      (pid, "entree", qty, f"Achat du {date}"))

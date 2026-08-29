@@ -64,11 +64,13 @@ class VentesFrame(ctk.CTkFrame):
 
     def _load(self):
         for r in self.tree.get_children(): self.tree.delete(r)
-        q = """SELECT v.date_vente,p.nom,v.quantite,COALESCE(v.paquets_offerts,0),
+        q = """SELECT v.date_vente,
+                      COALESCE(p.nom, v.produit_nom, '[produit supprime]'),
+                      v.quantite,COALESCE(v.paquets_offerts,0),
                       v.prix_unitaire,v.prix_total,COALESCE(v.client,'-'),COALESCE(v.notes,'-')
-               FROM ventes v JOIN produits p ON v.produit_id=p.id"""
+               FROM ventes v LEFT JOIN produits p ON v.produit_id=p.id"""
         filters=[]; params=[]
-        if self.fp.get()!="Tous": filters.append("p.nom=?"); params.append(self.fp.get())
+        if self.fp.get()!="Tous": filters.append("COALESCE(p.nom, v.produit_nom)=?"); params.append(self.fp.get())
         if filters: q+=" WHERE "+" AND ".join(filters)
         q+=" ORDER BY v.date_vente DESC"
         conn = get_connection(); rows=conn.execute(q,params).fetchall(); conn.close()

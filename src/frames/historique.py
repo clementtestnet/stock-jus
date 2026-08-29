@@ -71,12 +71,14 @@ class HistoriqueFrame(ctk.CTkFrame):
 
     def _load(self):
         for r in self.tree.get_children(): self.tree.delete(r)
-        q = """SELECT a.date_achat,p.nom,COALESCE(f.nom,'-'),a.quantite,
+        q = """SELECT a.date_achat,
+                      COALESCE(p.nom, a.produit_nom, '[produit supprime]'),
+                      COALESCE(f.nom,'-'),a.quantite,
                       a.prix_unitaire,a.prix_total,COALESCE(a.notes,'-')
-               FROM achats a JOIN produits p ON a.produit_id=p.id
+               FROM achats a LEFT JOIN produits p ON a.produit_id=p.id
                LEFT JOIN fournisseurs f ON a.fournisseur_id=f.id"""
         filters=[]; params=[]
-        if self.fp.get()!="Tous": filters.append("p.nom=?"); params.append(self.fp.get())
+        if self.fp.get()!="Tous": filters.append("COALESCE(p.nom, a.produit_nom)=?"); params.append(self.fp.get())
         if self.ff2.get()!="Tous": filters.append("f.nom=?"); params.append(self.ff2.get())
         if filters: q+=" WHERE "+" AND ".join(filters)
         q+=" ORDER BY a.date_achat DESC"

@@ -113,9 +113,11 @@ class SortiesFrame(ctk.CTkFrame):
         for r in self.tree.get_children(): self.tree.delete(r)
         conn = get_connection()
         for r in conn.execute("""
-            SELECT s.date_sortie,p.nom,s.quantite,s.destination,
-                   COALESCE(s.motif,'-'),COALESCE(s.notes,'-')
-            FROM sorties s JOIN produits p ON s.produit_id=p.id
+            SELECT s.date_sortie,
+                   COALESCE(p.nom, s.produit_nom, '[produit supprime]'),
+                   s.quantite, s.destination,
+                   COALESCE(s.motif,'-'), COALESCE(s.notes,'-')
+            FROM sorties s LEFT JOIN produits p ON s.produit_id=p.id
             ORDER BY s.date_sortie DESC LIMIT 30
         """).fetchall():
             self.tree.insert("","end", values=(str(r[0])[:16],r[1],r[2],r[3],r[4],r[5]))
@@ -144,10 +146,10 @@ class SortiesFrame(ctk.CTkFrame):
         date  = self.vars["date"].get() or datetime.now().strftime("%Y-%m-%d")
         motif = self.vars["motif"].get() or "Transfert boutique"
         conn.execute("""
-            INSERT INTO sorties (produit_id,quantite,destination,motif,date_sortie,notes)
-            VALUES (?,?,?,?,?,?)
-        """, (pid, qty, dest, motif, date, self.vars["notes"].get() or None))
-        conn.execute("UPDATE produits SET stock_actuel=stock_actuel-? WHERE id=?", (qty,pid))
+            INSERT INTO sorties (produit_id, produit_nom, quantite, destination, motif, date_sortie, notes)
+            VALUES (?,?,?,?,?,?,?)
+        """, (pid, nom, qty, dest, motif, date, self.vars["notes"].get() or None))
+        conn.execute("UPDATE produits SET stock_actuel = MAX(0, stock_actuel - ?) WHERE id=?", (qty, pid))
         conn.execute("INSERT INTO mouvements (produit_id,type,quantite,motif) VALUES (?,?,?,?)",
                      (pid,"sortie",qty,f"Transfert vers {dest}"))
         conn.commit(); conn.close()
