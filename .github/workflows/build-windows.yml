@@ -1,70 +1,73 @@
-name: 🧃 Compiler Stock Jus .exe Windows
+name: Compiler Stock Jus exe Windows
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:   # bouton manuel sur GitHub
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
     runs-on: windows-latest
 
     steps:
-      - name: 📥 Télécharger le code
+      - name: Telecharger le code
         uses: actions/checkout@v4
 
-      - name: 🐍 Installer Python 3.12
+      - name: Installer Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: 📦 Installer les dépendances
+      - name: Installer les dependances
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller customtkinter reportlab pillow
 
-      - name: 🔨 Compiler le .exe avec PyInstaller
+      - name: Compiler le exe avec PyInstaller
         run: |
           python -m PyInstaller stock_jus.spec --noconfirm --clean
 
-      - name: 📁 Copier la base de données
+      - name: Copier la base de donnees
+        shell: pwsh
         run: |
           if (Test-Path "stock_jus.db") {
             Copy-Item "stock_jus.db" "dist\StockJus\"
           }
-        shell: pwsh
 
-      - name: ✅ Vérifier que le .exe existe
+      - name: Verifier que le exe existe
+        shell: pwsh
         run: |
           if (!(Test-Path "dist\StockJus\StockJus.exe")) {
             Write-Error "StockJus.exe introuvable !"
             exit 1
           }
-          Write-Host "StockJus.exe créé avec succès !"
-        shell: pwsh
+          Write-Host "StockJus.exe cree avec succes !"
 
-      - name: 📤 Uploader le .exe comme artefact
+      - name: Uploader le exe comme artefact
         uses: actions/upload-artifact@v4
         with:
           name: StockJus-Windows-EXE
           path: dist\StockJus\
           retention-days: 30
 
-      - name: 🏷️ Créer une Release GitHub automatique
+      - name: Creer une Release GitHub
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
           tag_name: v5.0-build-${{ github.run_number }}
-          name: "🧃 Stock Jus v5.0 — Build ${{ github.run_number }}"
+          name: "Stock Jus v5.0 - Build ${{ github.run_number }}"
           body: |
-            ## 📥 Télécharger l'application Windows
+            Telecharger l application Windows
 
-            1. Téléchargez **StockJus-Windows.zip** ci-dessous
+            1. Telechargez StockJus-Windows-EXE.zip ci-dessous
             2. Extrayez le ZIP
-            3. Double-cliquez sur **StockJus.exe**
+            3. Double-cliquez sur StockJus.exe
 
-            ✅ Aucune installation de Python requise !
-          files: dist\StockJus\*
+            Aucune installation de Python requise !
+          files: dist/StockJus/*
           draft: false
           prerelease: false
         env:
