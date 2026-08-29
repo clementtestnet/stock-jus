@@ -46,11 +46,17 @@ jobs:
           }
           Write-Host "StockJus.exe cree avec succes !"
 
-      - name: Uploader le exe comme artefact
+      - name: Creer le ZIP complet
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist\StockJus\*" -DestinationPath "StockJus-Windows.zip"
+          Write-Host "ZIP cree : StockJus-Windows.zip"
+
+      - name: Uploader le ZIP comme artefact
         uses: actions/upload-artifact@v4
         with:
           name: StockJus-Windows-EXE
-          path: dist\StockJus\
+          path: StockJus-Windows.zip
           retention-days: 30
 
       - name: Creer une Release GitHub
@@ -60,14 +66,14 @@ jobs:
           tag_name: v5.0-build-${{ github.run_number }}
           name: "Stock Jus v5.0 - Build ${{ github.run_number }}"
           body: |
-            Telecharger l application Windows
+            ## Telecharger Stock Jus pour Windows
 
-            1. Telechargez StockJus-Windows-EXE.zip ci-dessous
-            2. Extrayez le ZIP
-            3. Double-cliquez sur StockJus.exe
+            Clique sur StockJus-Windows.zip ci-dessous
+            Extrais le ZIP n importe ou sur ton PC
+            Double-clique sur StockJus.exe
 
             Aucune installation de Python requise !
-          files: dist/StockJus/*
+          files: StockJus-Windows.zip
           draft: false
           prerelease: false
         env:
