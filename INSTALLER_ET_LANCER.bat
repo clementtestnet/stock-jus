@@ -57,32 +57,41 @@ if "%PY%"=="" (
 echo  ✅ Python trouvé : %PY%
 echo.
 
-:: ── Si le .exe compilé existe, le lancer directement ─────────────
-if exist "dist\StockJus\StockJus.exe" (
-    echo  ✅ Application compilée trouvée — lancement...
-    start "" "dist\StockJus\StockJus.exe"
-    exit /b 0
-)
-
-:: ── Sinon installer les dépendances et compiler ───────────────────
-echo  ℹ️  Première utilisation — installation des dépendances...
+:: ── Installer les dépendances (toujours) ─────────────────────────
+echo  Installation / vérification des dépendances...
 %PY% -m pip install customtkinter reportlab pillow pyinstaller --quiet
 if errorlevel 1 (
     echo  ❌ Échec installation pip.
     pause & exit /b 1
 )
-
-echo  ✅ Dépendances installées
+echo  ✅ Dépendances OK
 echo.
-echo  Compilation de l'application (2-5 min)...
-%PY% -m PyInstaller stock_jus.spec --noconfirm --clean
-if errorlevel 1 (
-    echo  ❌ Compilation échouée.
+
+:: ── Compiler si .exe absent ───────────────────────────────────────
+if not exist "dist\StockJus\StockJus.exe" (
+    echo  Compilation en cours — patientez 2 à 5 minutes...
+    echo.
+    %PY% -m PyInstaller stock_jus.spec --noconfirm --clean
+    if errorlevel 1 (
+        echo.
+        echo  ❌ Compilation échouée. Lisez les erreurs ci-dessus.
+        pause & exit /b 1
+    )
+    if exist "stock_jus.db" copy /y "stock_jus.db" "dist\StockJus\" >nul
+    echo.
+    echo  ✅ Compilation terminée !
+) else (
+    echo  ✅ Application déjà compilée.
+)
+
+echo.
+
+:: ── Vérification finale ───────────────────────────────────────────
+if not exist "dist\StockJus\StockJus.exe" (
+    echo  ❌ dist\StockJus\StockJus.exe toujours absent après compilation.
+    echo  Quelque chose a mal tourné — lisez les messages ci-dessus.
     pause & exit /b 1
 )
 
-if exist "stock_jus.db" copy /y "stock_jus.db" "dist\StockJus\" >nul
-
-echo.
-echo  ✅ Application prête ! Lancement...
+echo  Lancement de Stock Jus...
 start "" "dist\StockJus\StockJus.exe"
