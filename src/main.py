@@ -1,4 +1,4 @@
-# main.py — AppAdmin MODERNE avec CustomTkinter
+# main.py
 import customtkinter as ctk
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -31,15 +31,15 @@ NAV_ITEMS = [
 ]
 
 FRAME_MAP = [
-    ("dashboard",   DashboardFrame),
-    ("produits",    ProduitsFrame),
-    ("vente_rapide",VenteRapideFrame),
-    ("achats",      AchatsFrame),
-    ("sorties",     SortiesFrame),
-    ("ventes",      VentesFrame),
-    ("historique",  HistoriqueFrame),
-    ("rapports",    RapportsFrame),
-    ("impression",  ImpressionFrame),
+    ("dashboard",    DashboardFrame),
+    ("produits",     ProduitsFrame),
+    ("vente_rapide", VenteRapideFrame),
+    ("achats",       AchatsFrame),
+    ("sorties",      SortiesFrame),
+    ("ventes",       VentesFrame),
+    ("historique",   HistoriqueFrame),
+    ("rapports",     RapportsFrame),
+    ("impression",   ImpressionFrame),
 ]
 
 
@@ -54,34 +54,31 @@ class AppAdmin(ctk.CTk):
         self.show_frame("dashboard")
 
     def _build(self):
-        # ─── Sidebar ───────────────────────────────────────────
+        # Sidebar
         self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=0)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
-        # Logo
         ctk.CTkLabel(self.sidebar, text="🧃",
-                     font=ctk.CTkFont(size=42)).pack(pady=(24, 4))
+                     font=ctk.CTkFont(size=42)).pack(pady=(24,4))
         ctk.CTkLabel(self.sidebar, text=BOUTIQUE_NOM,
                      font=ctk.CTkFont(size=16, weight="bold")).pack()
         ctk.CTkLabel(self.sidebar,
-                     text=f"Admin: {self.user_info['nom']}",
+                     text=f"👤 {self.user_info['nom']}",
                      font=ctk.CTkFont(size=11),
-                     text_color="#7EB3FF").pack(pady=(2, 14))
+                     text_color="#7EB3FF").pack(pady=(2,14))
 
-        ctk.CTkFrame(self.sidebar, height=1, fg_color="#3a3f4b").pack(fill="x", padx=18, pady=4)
+        ctk.CTkFrame(self.sidebar, height=1, fg_color="#3a3f4b").pack(
+            fill="x", padx=18, pady=4)
 
-        # Boutons nav
         self.nav_btns = {}
         for label, key in NAV_ITEMS:
             btn = ctk.CTkButton(
                 self.sidebar, text=label, anchor="w",
                 height=38, corner_radius=8,
                 font=ctk.CTkFont(size=13),
-                fg_color="transparent",
-                hover_color="#2a3a5a",
-                command=lambda k=key: self.show_frame(k)
-            )
+                fg_color="transparent", hover_color="#2a3a5a",
+                command=lambda k=key: self.show_frame(k))
             btn.pack(fill="x", padx=12, pady=2)
             self.nav_btns[key] = btn
 
@@ -92,14 +89,14 @@ class AppAdmin(ctk.CTk):
             height=36, corner_radius=8,
             font=ctk.CTkFont(size=12),
             fg_color="#c0392b", hover_color="#96281b",
-            command=self._deconnexion
-        ).pack(side="bottom", fill="x", padx=12, pady=(0, 14))
-        ctk.CTkLabel(self.sidebar, text="v4.0 — Modern",
+            command=self._deconnexion).pack(side="bottom", fill="x", padx=12, pady=(0,14))
+        ctk.CTkLabel(self.sidebar, text="v5.0",
                      font=ctk.CTkFont(size=10),
                      text_color="gray").pack(side="bottom", pady=4)
 
-        # ─── Zone principale ───────────────────────────────────
-        self.main_area = ctk.CTkFrame(self, corner_radius=0, fg_color=("gray92", "gray14"))
+        # Zone principale
+        self.main_area = ctk.CTkFrame(self, corner_radius=0,
+                                       fg_color=("gray92","gray14"))
         self.main_area.pack(side="right", fill="both", expand=True)
 
         self.frames = {}
@@ -118,7 +115,8 @@ class AppAdmin(ctk.CTk):
             if k == key:
                 btn.configure(fg_color="#1f6aa5", text_color="white")
             else:
-                btn.configure(fg_color="transparent", text_color=("gray10", "gray90"))
+                btn.configure(fg_color="transparent",
+                              text_color=("gray10","gray90"))
 
     def _deconnexion(self):
         self.destroy()

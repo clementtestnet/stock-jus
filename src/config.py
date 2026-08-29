@@ -1,9 +1,7 @@
-# config.py — Configuration globale de la boutique LE ROCHER
-
+# config.py
 BOUTIQUE_NOM       = "LE ROCHER"
 BOUTIQUE_SLOGAN    = "Vente de Jus en Bouteille"
-BOUTIQUE_ADRESSE   = ""
-BOUTIQUE_TELEPHONE = ""
-
-MONNAIE       = "FC"
-UNITE_DEFAULT = "paquet"
+BOUTIQUE_ADRESSE   = "Kinshasa, RDC"
+BOUTIQUE_TELEPHONE = "+243 000 000 000"
+MONNAIE            = "FC"
+UNITE_DEFAULT      = "paquet"
