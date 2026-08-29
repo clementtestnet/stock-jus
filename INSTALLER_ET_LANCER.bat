@@ -1,27 +1,33 @@
 @echo off
-title Installation et lancement - LE ROCHER
-color 0A
-echo.
-echo  ============================================
-echo   LE ROCHER - Gestion de Stock Jus
-echo  ============================================
-echo.
+chcp 65001 >nul
+title Stock Jus — Lancement
 
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo  Python non installe. Telechargement...
-    curl -o python_installer.exe https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
-    python_installer.exe /quiet InstallAllUsers=1 PrependPath=1
-    del python_installer.exe
-    echo  Python installe !
-) else (
-    echo  [1/3] Python OK
+:: Vérifier si le .exe compilé existe
+if exist "dist\StockJus\StockJus.exe" (
+    echo  Lancement de Stock Jus (version compilee)...
+    start "" "dist\StockJus\StockJus.exe"
+    exit /b 0
 )
 
-echo  [2/3] Installation des librairies...
-pip install reportlab customtkinter --quiet
-
-echo  [3/3] Lancement du logiciel...
+:: Sinon lancer en Python
+echo  Version compilee non trouvee.
+echo  Lancement en mode Python...
 echo.
-python src\main.py
-pause
+
+:: Vérifier Python
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo  [ERREUR] Python n'est pas installe.
+    echo  Telechargez Python sur https://python.org
+    pause & exit /b 1
+)
+
+:: Installer les dépendances si besoin
+echo  Installation des librairies...
+pip install customtkinter reportlab --quiet
+
+:: Lancer l'application
+echo  Demarrage...
+cd src
+python main.py
+cd ..
