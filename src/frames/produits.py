@@ -1,4 +1,4 @@
-# frames/produits.py
+# frames/produits.py — Gestion produits avec support virgule partout
 import customtkinter as ctk
 import tkinter.ttk as ttk
 import tkinter as tk
@@ -7,6 +7,17 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from database import get_connection
 from config import MONNAIE, UNITE_DEFAULT
+
+
+def fq(q):
+    """Affiche 2.0 → '2', 1.5 → '1.5'"""
+    q = float(q)
+    return str(int(q)) if q == int(q) else str(q)
+
+
+def _n(val):
+    """Convertit une saisie en float — accepte virgule et point."""
+    return float(str(val).replace(',', '.'))
 
 
 def _apply_tree_style():
@@ -62,7 +73,6 @@ class ProduitsFrame(ctk.CTkFrame):
     def refresh(self):
         for r in self.tree.get_children(): self.tree.delete(r)
         conn = get_connection()
-        def fq(q): return str(int(q)) if float(q)==int(float(q)) else str(q)
         for r in conn.execute("""
             SELECT id,nom,description,unite,prix_vente,stock_actuel,
                    stock_minimum,reduction_palier,reduction_quantite
@@ -102,24 +112,27 @@ class FormProduit(ctk.CTkToplevel):
         super().__init__(parent)
         self.pid = pid; self.on_save = on_save
         self.title("Modifier produit" if pid else "Nouveau produit")
-        self.geometry("460x500"); self.resizable(False,False)
+        self.geometry("460x520"); self.resizable(False,False)
         self.grab_set()
 
         ctk.CTkLabel(self, text="Modifier produit" if pid else "Nouveau produit",
-                     font=ctk.CTkFont(size=17, weight="bold")).pack(pady=(20,12))
+                     font=ctk.CTkFont(size=17, weight="bold")).pack(pady=(20,4))
+        ctk.CTkLabel(self,
+                     text="Virgule ou point acceptés pour les décimales",
+                     font=ctk.CTkFont(size=10), text_color="gray").pack(pady=(0,8))
 
         scroll = ctk.CTkScrollableFrame(self)
         scroll.pack(fill="both", expand=True, padx=20, pady=5)
 
         fields = [
-            ("Nom *",                           "nom"),
-            ("Description",                     "desc"),
-            (f"Unité (défaut: {UNITE_DEFAULT})", "unite"),
-            (f"Prix vente ({MONNAIE})",          "prix"),
-            ("Stock initial",                    "stock"),
-            ("Stock minimum",                    "stock_min"),
-            ("Réduction — palier (nb paquets)",  "palier"),
-            ("Réduction — paquets offerts",      "offerts"),
+            ("Nom *",                            "nom"),
+            ("Description",                      "desc"),
+            (f"Unité (défaut: {UNITE_DEFAULT})",  "unite"),
+            (f"Prix vente ({MONNAIE})",           "prix"),
+            ("Stock initial  (ex: 10 ou 0,5)",   "stock"),
+            ("Stock minimum",                     "stock_min"),
+            ("Réduction — palier (nb paquets)",   "palier"),
+            ("Réduction — paquets offerts",       "offerts"),
         ]
         self.vars = {}
         for label, key in fields:
@@ -130,7 +143,6 @@ class FormProduit(ctk.CTkToplevel):
             ctk.CTkEntry(scroll, textvariable=var, height=36,
                          corner_radius=8).pack(fill="x", padx=5, pady=(0,2))
 
-        # Valeurs par défaut
         self.vars["unite"].set(UNITE_DEFAULT)
         for k, v in [("prix","0"),("stock","0"),("stock_min","10"),
                      ("palier","0"),("offerts","0")]:
@@ -158,26 +170,31 @@ class FormProduit(ctk.CTkToplevel):
         if not nom:
             messagebox.showerror("Erreur","Nom obligatoire.",parent=self); return
         try:
-            prix = float(self.vars["prix"].get().replace(',','.'))
-            stock = float(self.vars["stock"].get().replace(',','.'))
-            smin  = float(self.vars["stock_min"].get().replace(',','.'))
-            pal   = int(self.vars["palier"].get())
-            off   = int(self.vars["offerts"].get())
-        except ValueError:
-            messagebox.showerror("Erreur","Valeurs numériques invalides.",parent=self); return
+            prix  = _n(self.vars["prix"].get())
+            stock = _n(self.vars["stock"].get())
+            smin  = _n(self.vars["stock_min"].get())
+            pal   = int(_n(self.vars["palier"].get()))
+            off   = int(_n(self.vars["offerts"].get()))
+        except (ValueError, TypeError):
+            messagebox.showerror(
+                "Erreur",
+                "Valeurs numériques invalides.\n"
+                "Astuce : virgule ou point sont acceptés (ex: 0,5 ou 0.5).",
+                parent=self)
+            return
         conn = get_connection()
         if self.pid:
             conn.execute("""UPDATE produits SET nom=?,description=?,unite=?,prix_vente=?,
                 stock_actuel=?,stock_minimum=?,reduction_palier=?,reduction_quantite=?
                 WHERE id=?""",
-                (nom,self.vars["desc"].get(),self.vars["unite"].get(),
-                 prix,stock,smin,pal,off,self.pid))
+                (nom, self.vars["desc"].get(), self.vars["unite"].get(),
+                 prix, stock, smin, pal, off, self.pid))
         else:
             conn.execute("""INSERT INTO produits
                 (nom,description,unite,prix_vente,stock_actuel,stock_minimum,
                  reduction_palier,reduction_quantite) VALUES (?,?,?,?,?,?,?,?)""",
-                (nom,self.vars["desc"].get(),self.vars["unite"].get(),
-                 prix,stock,smin,pal,off))
+                (nom, self.vars["desc"].get(), self.vars["unite"].get(),
+                 prix, stock, smin, pal, off))
         conn.commit(); conn.close()
         if self.on_save: self.on_save()
         self.destroy()
