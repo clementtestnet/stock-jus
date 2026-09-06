@@ -41,8 +41,8 @@ def init_db():
         description       TEXT,
         unite             TEXT DEFAULT 'paquet',
         prix_vente        REAL DEFAULT 0,
-        stock_actuel      INTEGER DEFAULT 0,
-        stock_minimum     INTEGER DEFAULT 10,
+        stock_actuel      REAL DEFAULT 0,
+        stock_minimum     REAL DEFAULT 10,
         reduction_palier  INTEGER DEFAULT 0,
         reduction_quantite INTEGER DEFAULT 0,
         created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -53,10 +53,10 @@ def init_db():
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
         produit_id      INTEGER,
         produit_nom     TEXT,
-        quantite        INTEGER NOT NULL,
+        quantite        REAL NOT NULL,
         prix_unitaire   REAL NOT NULL,
         prix_total      REAL NOT NULL,
-        paquets_offerts INTEGER DEFAULT 0,
+        paquets_offerts REAL DEFAULT 0,
         date_vente      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         client          TEXT,
         notes           TEXT,
@@ -124,4 +124,12 @@ def _migrate(conn):
                 SELECT nom FROM produits WHERE produits.id={tbl}.produit_id)
             WHERE produit_nom IS NULL AND produit_id IS NOT NULL
         """)
+    # Migration demi-paquet : stock_actuel et quantite passent en REAL
+    # SQLite ne modifie pas le type des colonnes — on force via une valeur REAL
+    # (SQLite stocke déjà en REAL si on insère un float, la migration est transparente)
+    # On s'assure juste que stock_actuel accepte 0.5 en faisant un UPDATE no-op
+    try:
+        c.execute("UPDATE produits SET stock_actuel = CAST(stock_actuel AS REAL) WHERE 1=0")
+    except Exception:
+        pass
     conn.commit()

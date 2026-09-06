@@ -94,8 +94,11 @@ class VenteRapideFrame(ctk.CTkFrame):
                      width=90, anchor="w").pack(side="left", padx=(20,0))
         self.qty_var = tk.StringVar(value="1")
         self.qty_entry = ctk.CTkEntry(r1, textvariable=self.qty_var,
-                                       width=80, height=34, corner_radius=8)
+                                       placeholder_text="ex: 1 ou 0.5",
+                                       width=100, height=34, corner_radius=8)
         self.qty_entry.pack(side="left", padx=8)
+        # accepter la virgule comme séparateur décimal
+        self.qty_entry.bind("<KeyRelease>", self._normaliser_virgule)
         self.qty_var.trace_add("write", self._update_preview)
         self.preview_lbl = ctk.CTkLabel(r1, text="",
                                          font=ctk.CTkFont(size=12),
@@ -197,6 +200,25 @@ class VenteRapideFrame(ctk.CTkFrame):
         self._selected = None
         self.refresh()
 
+    def _normaliser_virgule(self, _=None):
+        """Remplace la virgule par un point dans le champ quantité."""
+        val = self.qty_var.get()
+        if ',' in val:
+            pos = self.qty_entry.index('insert')
+            self.qty_var.set(val.replace(',', '.'))
+            try: self.qty_entry.icursor(pos)
+            except: pass
+
+    def _parse_qty(self):
+        """Retourne la quantité en float, ou None si invalide."""
+        try:
+            q = float(self.qty_var.get().replace(',', '.'))
+            if q <= 0: return None
+            # arrondi à 1 décimale pour éviter les flottants bizarres (0.10000001)
+            return round(q, 1)
+        except (ValueError, TypeError):
+            return None
+
     # ─── Recherche live ──────────────────────────────────────────────────────
 
     def _on_search(self, *_):
@@ -253,13 +275,17 @@ class VenteRapideFrame(ctk.CTkFrame):
     def _update_preview(self, *_):
         p = self._selected
         if not p: self.preview_lbl.configure(text=""); return
+        qty = self._parse_qty()
+        if qty is None: self.preview_lbl.configure(text=""); return
         try:
-            qty = int(self.qty_var.get())
-            if qty <= 0: raise ValueError
             red = calculer_reduction(qty, p["palier"], p["qte_offerte"], p["prix"])
+            # affichage de la quantité : 1.0 -> "1", 0.5 -> "0.5"
+            def fq(q): return str(int(q)) if float(q)==int(float(q)) else str(q)
             txt = f"= {red['prix_total']:,.0f} {MONNAIE}"
+            if qty != int(qty):
+                txt += f"  ({fq(qty)} paquet)"
             if red["paquets_offerts"] > 0:
-                txt += f"  🎁 +{red['paquets_offerts']} offerts"
+                txt += f"  🎁 +{fq(red['paquets_offerts'])} offerts"
             self.preview_lbl.configure(text=txt, text_color="#27ae60")
         except (ValueError, TypeError):
             self.preview_lbl.configure(text="")
@@ -271,11 +297,9 @@ class VenteRapideFrame(ctk.CTkFrame):
         if not p:
             self.add_msg.configure(text="⚠ Sélectionnez un produit.", text_color="#e74c3c")
             return
-        try:
-            qty = int(self.qty_var.get())
-            if qty <= 0: raise ValueError
-        except ValueError:
-            self.add_msg.configure(text="⚠ Quantité invalide.", text_color="#e74c3c")
+        qty = self._parse_qty()
+        if qty is None:
+            self.add_msg.configure(text="⚠ Quantité invalide (ex: 1 ou 0.5).", text_color="#e74c3c")
             return
         # Stock disponible = stock réel - déjà réservé dans le panier
         reserve = sum(l["qty"]+l["offerts"] for l in self._panier if l["pid"]==p["id"])
@@ -298,12 +322,13 @@ class VenteRapideFrame(ctk.CTkFrame):
         self.search_entry.focus()
 
     def _refresh_pan(self):
+        def fq(q): return str(int(q)) if float(q)==int(float(q)) else str(q)
         for r in self.pan_tree.get_children(): self.pan_tree.delete(r)
         tot = 0
         for l in self._panier:
             self.pan_tree.insert("","end", values=(
-                l["nom"], l["qty"], f"{l['prix']:.0f} {MONNAIE}",
-                f"+{l['offerts']}" if l["offerts"]>0 else "—",
+                l["nom"], fq(l["qty"]), f"{l['prix']:.0f} {MONNAIE}",
+                f"+{fq(l['offerts'])}" if l["offerts"]>0 else "—",
                 f"{l['total']:,.0f} {MONNAIE}"))
             tot += l["total"]
         self.total_lbl.configure(text=f"Total : {tot:,.0f} {MONNAIE}")
@@ -335,15 +360,15 @@ class VenteRapideFrame(ctk.CTkFrame):
             if row is None:
                 conn.close()
                 messagebox.showerror("Erreur", f"Produit '{l['nom']}' introuvable."); return
-            stock_reel = row[0]
+            stock_reel = float(row[0])
             # déduire ce que les lignes précédentes du même produit vont prendre
-            deja = sum(x["qty"]+x["offerts"] for x in self._panier[:i]
+            deja = sum(float(x["qty"])+float(x["offerts"]) for x in self._panier[:i]
                        if x["pid"]==l["pid"])
-            if (l["qty"]+l["offerts"]) > (stock_reel - deja):
+            if (float(l["qty"])+float(l["offerts"])) > (stock_reel - deja):
                 conn.close()
                 messagebox.showerror("Stock insuffisant",
                     f"{l['nom']}: dispo={stock_reel-deja}, "
-                    f"demandé={l['qty']+l['offerts']}"); return
+                    f"demandé={float(l['qty'])+float(l['offerts'])}"); return
 
         self._last_vente_ids = []
         for l in self._panier:
@@ -400,9 +425,11 @@ class VenteRapideFrame(ctk.CTkFrame):
             FROM ventes v LEFT JOIN produits p ON v.produit_id=p.id
             WHERE DATE(v.date_vente)=? ORDER BY v.date_vente DESC
         """, (today,)).fetchall():
+            qte = float(r[2])
+            qte_str = str(int(qte)) if qte == int(qte) else str(qte)
             self.hist_tree.insert("","end", values=(
-                r[0],r[1],r[2],f"{r[3]:.0f}",f"{r[4]:,.0f}",
-                f"+{r[5]}" if r[5]>0 else "—", r[6], str(r[7])[11:16]))
+                r[0],r[1],qte_str,f"{r[3]:.0f}",f"{r[4]:,.0f}",
+                f"+{r[5]}" if float(r[5])>0 else "—", r[6], str(r[7])[11:16]))
         conn.close()
 
     def _on_hist_select(self, _=None):
