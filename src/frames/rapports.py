@@ -71,11 +71,13 @@ class RapportsFrame(ctk.CTkFrame):
         conn.close()
         total = 0
         for r in rows:
-            val = r[2]*r[4]; total += val
-            ok  = r[2] > r[3]
+            stock = float(r[2])
+            val = stock * r[4]; total += val
+            ok  = stock > r[3]
+            def fq(q): return str(int(q)) if float(q)==int(float(q)) else str(q)
             self.tr1.insert("","end", values=(
-                r[0],r[1],r[2],r[3],f"{r[4]:.0f}",
-                f"{val:,.0f}","OK" if ok else "Bas"),
+                r[0], r[1], fq(stock), r[3], f"{r[4]:.0f}",
+                f"{val:,.0f}", "OK" if ok else "Bas"),
                 tags=("ok",) if ok else ("bas",))
         self.lbl_t1.configure(
             text=f"💰 Valeur totale stock: {total:,.0f} {MONNAIE}")

@@ -1,4 +1,4 @@
-# frames/sorties.py
+# frames/sorties.py — Transfert boutique avec support demi-paquet
 import customtkinter as ctk
 import tkinter.ttk as ttk
 import tkinter as tk
@@ -8,6 +8,11 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from database import get_connection
 from config import UNITE_DEFAULT
+
+
+def fq(q):
+    q = float(q)
+    return str(int(q)) if q == int(q) else str(q)
 
 
 def _apply_tree_style():
@@ -26,6 +31,7 @@ class SortiesFrame(ctk.CTkFrame):
         super().__init__(parent, corner_radius=0, fg_color="transparent")
         self.controller   = controller
         self._produit_map = {}
+        self._qty_entry   = None
         _apply_tree_style()
         self._build()
 
@@ -34,7 +40,7 @@ class SortiesFrame(ctk.CTkFrame):
                      font=ctk.CTkFont(size=22, weight="bold")).pack(
             anchor="w", padx=30, pady=(22,2))
         ctk.CTkLabel(self,
-                     text="Produits transférés vers une autre boutique (pas vendus au client)",
+                     text="Produits transférés vers une autre boutique (ex: 0,5 pour demi-paquet)",
                      font=ctk.CTkFont(size=12), text_color="gray").pack(
             anchor="w", padx=30, pady=(0,14))
 
@@ -58,21 +64,25 @@ class SortiesFrame(ctk.CTkFrame):
 
         self.vars = {"produit": self.pvar}
         for label, key in [
-            (f"Quantité ({UNITE_DEFAULT}s) *",          "quantite"),
-            ("Boutique destinataire *",                   "destination"),
-            ("Motif (ex: approvisionnement)",             "motif"),
-            ("Date",                                      "date"),
-            ("Notes",                                     "notes"),
+            (f"Quantité ({UNITE_DEFAULT}s) *  ex: 1 ou 0,5", "quantite"),
+            ("Boutique destinataire *",                        "destination"),
+            ("Motif (ex: approvisionnement)",                  "motif"),
+            ("Date",                                           "date"),
+            ("Notes",                                          "notes"),
         ]:
             row = ctk.CTkFrame(card, fg_color="transparent")
             row.pack(fill="x", padx=20, pady=4)
             ctk.CTkLabel(row, text=label,
                          font=ctk.CTkFont(size=12, weight="bold"),
-                         width=220, anchor="w").pack(side="left")
+                         width=280, anchor="w").pack(side="left")
             var = tk.StringVar(); self.vars[key] = var
-            ctk.CTkEntry(row, textvariable=var, width=280, height=34,
-                         corner_radius=8).pack(side="left", padx=8)
-            if key == "date": var.set(datetime.now().strftime("%Y-%m-%d"))
+            e = ctk.CTkEntry(row, textvariable=var, width=260, height=34, corner_radius=8)
+            e.pack(side="left", padx=8)
+            if key == "date":
+                var.set(datetime.now().strftime("%Y-%m-%d"))
+            if key == "quantite":
+                self._qty_entry = e
+                e.bind("<KeyRelease>", self._on_qty_key)
 
         ctk.CTkButton(card, text="🟣 Enregistrer la sortie",
                       height=44, corner_radius=10,
@@ -98,12 +108,30 @@ class SortiesFrame(ctk.CTkFrame):
         self.status_lbl.pack(anchor="w", padx=30, pady=4)
         self.refresh()
 
+    # ── helpers ──────────────────────────────────────────────────────────────
+
+    def _on_qty_key(self, _=None):
+        val = self.vars["quantite"].get()
+        if ',' in val:
+            pos = self._qty_entry.index('insert')
+            self.vars["quantite"].set(val.replace(',', '.'))
+            try: self._qty_entry.icursor(pos)
+            except: pass
+
+    def _parse_qty(self):
+        try:
+            q = round(float(self.vars["quantite"].get().replace(',', '.')), 1)
+            return q if q > 0 else None
+        except (ValueError, TypeError):
+            return None
+
     def _on_produit(self, _=None):
         info = self._produit_map.get(self.pvar.get())
         if info:
-            color = "#27ae60" if info["stock"] > 0 else "#e74c3c"
+            stock = float(info["stock"])
+            color = "#27ae60" if stock > 0 else "#e74c3c"
             self.lbl_stock.configure(
-                text=f"Stock: {info['stock']} {UNITE_DEFAULT}s", text_color=color)
+                text=f"Stock: {fq(stock)} {UNITE_DEFAULT}s", text_color=color)
 
     def refresh(self):
         conn = get_connection()
@@ -126,49 +154,46 @@ class SortiesFrame(ctk.CTkFrame):
             FROM sorties s LEFT JOIN produits p ON s.produit_id=p.id
             ORDER BY s.date_sortie DESC LIMIT 50
         """).fetchall():
-            self.tree.insert("","end",
-                values=(str(r[0])[:16],r[1],r[2],r[3],r[4],r[5]))
+            self.tree.insert("","end", values=(
+                str(r[0])[:16], r[1], fq(float(r[2])),
+                r[3], r[4], r[5]))
         conn.close()
 
     def _save(self):
-        nom  = self.pvar.get()
-        dest = self.vars["destination"].get().strip()
-        if not nom or nom not in self._produit_map:
+        pnom = self.vars["produit"].get()
+        if not pnom or pnom not in self._produit_map:
             messagebox.showerror("Erreur","Sélectionnez un produit."); return
+        dest = self.vars["destination"].get().strip()
         if not dest:
-            messagebox.showerror("Erreur","Indiquez la boutique destinataire."); return
-        try:
-            qty = int(self.vars["quantite"].get())
-            if qty <= 0: raise ValueError
-        except ValueError:
-            messagebox.showerror("Erreur","Quantité invalide."); return
+            messagebox.showerror("Erreur","Boutique destinataire obligatoire."); return
+        qty = self._parse_qty()
+        if qty is None:
+            messagebox.showerror("Erreur","Quantité invalide (ex: 1 ou 0.5)."); return
 
-        pid  = self._produit_map[nom]["id"]
-        conn = get_connection()
-        stock = conn.execute(
-            "SELECT stock_actuel FROM produits WHERE id=?", (pid,)).fetchone()[0]
+        info  = self._produit_map[pnom]
+        stock = float(info["stock"])
         if qty > stock:
             messagebox.showerror("Stock insuffisant",
-                f"Stock: {stock}  Demandé: {qty}")
-            conn.close(); return
+                f"Stock: {fq(stock)}  Demandé: {fq(qty)}"); return
 
-        date  = self.vars["date"].get() or datetime.now().strftime("%Y-%m-%d")
-        motif = self.vars["motif"].get() or "Transfert boutique"
+        pid  = info["id"]
+        date = self.vars["date"].get() or datetime.now().strftime("%Y-%m-%d")
+        conn = get_connection()
+        conn.execute("""
+            INSERT INTO sorties
+            (produit_id,produit_nom,quantite,destination,motif,date_sortie,notes)
+            VALUES (?,?,?,?,?,?,?)
+        """, (pid, pnom, qty, dest,
+              self.vars["motif"].get() or "Transfert",
+              date, self.vars["notes"].get()))
         conn.execute(
-            "INSERT INTO sorties "
-            "(produit_id,produit_nom,quantite,destination,motif,date_sortie,notes) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (pid,nom,qty,dest,motif,date,self.vars["notes"].get() or None))
-        conn.execute(
-            "UPDATE produits SET stock_actuel=MAX(0, stock_actuel-?) WHERE id=?", (qty,pid))
+            "UPDATE produits SET stock_actuel=MAX(0,stock_actuel-?) WHERE id=?", (qty, pid))
         conn.execute(
             "INSERT INTO mouvements (produit_id,type,quantite,motif) VALUES (?,?,?,?)",
-            (pid,"sortie",qty,f"Transfert vers {dest}"))
+            (pid, "sortie", qty, f"Transfert vers {dest}"))
         conn.commit(); conn.close()
-
         self.status_lbl.configure(
-            text=f"✅ {qty} {UNITE_DEFAULT}s transférés vers {dest}")
+            text=f"✅ {fq(qty)} {UNITE_DEFAULT}(s) transféré(s) vers {dest}")
         for k in ("quantite","destination","motif","notes"): self.vars[k].set("")
-        self.lbl_stock.configure(text="", text_color="gray")
+        self.lbl_stock.configure(text="")
         self.refresh()
-        messagebox.showinfo("Succès", f"✅ {qty} {UNITE_DEFAULT}s → {dest}")

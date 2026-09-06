@@ -82,9 +82,11 @@ class VentesFrame(ctk.CTkFrame):
         conn = get_connection(); rows = conn.execute(q, params).fetchall(); conn.close()
         total = 0
         for r in rows:
+            q = float(r[2]); offs = float(r[3])
+            qstr = str(int(q)) if q == int(q) else str(q)
+            ostr = f"+{str(int(offs)) if offs==int(offs) else str(offs)}" if offs>0 else "—"
             self.tree.insert("","end", values=(
-                str(r[0])[:16], r[1], r[2],
-                f"+{r[3]}" if r[3]>0 else "—",
+                str(r[0])[:16], r[1], qstr, ostr,
                 f"{r[4]:.0f}", f"{r[5]:,.0f} {MONNAIE}", r[6], r[7]))
             total += r[5]
         self.lbl.configure(text=f"💰 Total recettes: {total:,.0f} {MONNAIE}")

@@ -1,4 +1,4 @@
-# app_employe.py
+# app_employe.py — Interface employé avec support demi-paquet
 import customtkinter as ctk
 import tkinter.ttk as ttk
 import tkinter as tk
@@ -13,6 +13,12 @@ from reduction import calculer_reduction
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
+
+def fq(q):
+    """Affiche 2.0 → '2', 1.5 → '1.5'"""
+    q = float(q)
+    return str(int(q)) if q == int(q) else str(q)
 
 
 def _apply_tree_style():
@@ -40,29 +46,24 @@ class AppEmploye(ctk.CTk):
         self._build()
 
     def _build(self):
-        # Barre du haut
         top = ctk.CTkFrame(self, height=52, corner_radius=0)
         top.pack(fill="x"); top.pack_propagate(False)
         ctk.CTkLabel(top, text=f"🧃 {BOUTIQUE_NOM}",
-                     font=ctk.CTkFont(size=15, weight="bold")).pack(
-            side="left", padx=20)
+                     font=ctk.CTkFont(size=15, weight="bold")).pack(side="left", padx=20)
         ctk.CTkLabel(top, text=f"👷 {self.user_info['nom']}  |  Employé",
-                     font=ctk.CTkFont(size=11), text_color="#7EB3FF").pack(
-            side="left", padx=10)
+                     font=ctk.CTkFont(size=11), text_color="#7EB3FF").pack(side="left", padx=10)
         ctk.CTkButton(top, text="🚪 Déconnexion",
                       width=130, height=34, corner_radius=8,
                       fg_color="#c0392b", hover_color="#96281b",
                       command=self._deconnexion).pack(side="right", padx=15, pady=8)
 
-        # Corps scrollable
         body = ctk.CTkScrollableFrame(self, corner_radius=0, fg_color="transparent")
         body.pack(fill="both", expand=True, padx=30, pady=15)
 
         ctk.CTkLabel(body, text="Nouvelle Vente",
                      font=ctk.CTkFont(size=20, weight="bold")).pack(anchor="w")
-        ctk.CTkLabel(body, text="Enregistrez la vente puis générez la facture PDF",
-                     font=ctk.CTkFont(size=11), text_color="gray").pack(
-            anchor="w", pady=(0,14))
+        ctk.CTkLabel(body, text="Entrez la quantité (ex: 1 ou 0,5 pour demi-paquet)",
+                     font=ctk.CTkFont(size=11), text_color="gray").pack(anchor="w", pady=(0,14))
 
         card = ctk.CTkFrame(body, corner_radius=14)
         card.pack(fill="x")
@@ -85,38 +86,40 @@ class AppEmploye(ctk.CTk):
 
         # Champs
         self.vars = {"produit": self.produit_var}
+        self._qty_entry = None
         for label, key in [
-            (f"Quantité ({UNITE_DEFAULT}s) *", "quantite"),
-            (f"Prix unitaire ({MONNAIE}) *",   "prix_unit"),
-            ("Client",                          "client"),
-            ("Notes",                           "notes"),
-            ("Date",                            "date"),
+            (f"Quantité ({UNITE_DEFAULT}s) *  ex: 1 ou 0,5", "quantite"),
+            (f"Prix unitaire ({MONNAIE}) *",                  "prix_unit"),
+            ("Client",                                         "client"),
+            ("Notes",                                          "notes"),
+            ("Date",                                           "date"),
         ]:
             row = ctk.CTkFrame(card, fg_color="transparent")
             row.pack(fill="x", padx=20, pady=4)
             ctk.CTkLabel(row, text=label,
                          font=ctk.CTkFont(size=12, weight="bold"),
-                         width=180, anchor="w").pack(side="left")
+                         width=240, anchor="w").pack(side="left")
             var = tk.StringVar(); self.vars[key] = var
-            e = ctk.CTkEntry(row, textvariable=var, width=280, height=34, corner_radius=8)
+            e = ctk.CTkEntry(row, textvariable=var, width=260, height=34, corner_radius=8)
             e.pack(side="left", padx=8)
             if key == "date": var.set(datetime.now().strftime("%Y-%m-%d"))
-            if key in ("quantite","prix_unit"):
+            if key == "quantite":
+                self._qty_entry = e
+                e.bind("<KeyRelease>", self._on_qty_key)
+            if key == "prix_unit":
                 e.bind("<KeyRelease>", self._update_total)
 
         # Total
         tf = ctk.CTkFrame(card, corner_radius=10, fg_color=("#fff8e1","#2e2a00"))
         tf.pack(fill="x", padx=20, pady=8)
         ctk.CTkLabel(tf, text="Total :",
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(
-            side="left", padx=15, pady=10)
+                     font=ctk.CTkFont(size=13, weight="bold")).pack(side="left", padx=15, pady=10)
         self.total_lbl = ctk.CTkLabel(tf, text=f"0 {MONNAIE}",
                                        font=ctk.CTkFont(size=18, weight="bold"),
                                        text_color="#f39c12")
         self.total_lbl.pack(side="left")
         self.red_lbl = ctk.CTkLabel(tf, text="",
-                                     font=ctk.CTkFont(size=11),
-                                     text_color="#27ae60")
+                                     font=ctk.CTkFont(size=11), text_color="#27ae60")
         self.red_lbl.pack(side="left", padx=20)
 
         # Boutons
@@ -130,28 +133,46 @@ class AppEmploye(ctk.CTk):
         self.btn_pdf = ctk.CTkButton(bf, text="🖨 Facture PDF",
                                       width=160, height=42, corner_radius=10,
                                       font=ctk.CTkFont(size=13, weight="bold"),
-                                      state="disabled",
-                                      command=self._generer_facture)
+                                      state="disabled", command=self._generer_facture)
         self.btn_pdf.pack(side="left", padx=8)
 
         # Historique du jour
         ctk.CTkLabel(body, text="Mes ventes du jour",
-                     font=ctk.CTkFont(size=15, weight="bold")).pack(
-            anchor="w", pady=(18,4))
+                     font=ctk.CTkFont(size=15, weight="bold")).pack(anchor="w", pady=(18,4))
         cols = ("ID","Produit","Qté","Prix","Total","Offerts","Client","Heure")
         self.tree = ttk.Treeview(body, columns=cols, show="headings",
                                   height=7, style="Dark.Treeview")
-        for c, w in zip(cols, [40,150,55,90,110,65,110,75]):
+        for c, w in zip(cols, [40,150,65,90,110,65,110,75]):
             self.tree.heading(c, text=c)
             self.tree.column(c, width=w, anchor="center")
         self.tree.pack(fill="x")
         self.tree.bind("<<TreeviewSelect>>", self._on_select)
 
         self.status_lbl = ctk.CTkLabel(body, text="",
-                                        font=ctk.CTkFont(size=11),
-                                        text_color="#27ae60")
+                                        font=ctk.CTkFont(size=11), text_color="#27ae60")
         self.status_lbl.pack(anchor="w", pady=6)
         self.refresh()
+
+    # ── helpers quantité ─────────────────────────────────────────────────────
+
+    def _on_qty_key(self, _=None):
+        """Remplace la virgule par un point, puis recalcule le total."""
+        val = self.vars["quantite"].get()
+        if ',' in val:
+            pos = self._qty_entry.index('insert')
+            self.vars["quantite"].set(val.replace(',', '.'))
+            try: self._qty_entry.icursor(pos)
+            except: pass
+        self._update_total()
+
+    def _parse_qty(self):
+        try:
+            q = round(float(self.vars["quantite"].get().replace(',', '.')), 1)
+            return q if q > 0 else None
+        except (ValueError, TypeError):
+            return None
+
+    # ── callbacks ────────────────────────────────────────────────────────────
 
     def _on_produit(self, _=None):
         nom = self.produit_var.get()
@@ -165,8 +186,9 @@ class AppEmploye(ctk.CTk):
         if row:
             self._red_palier   = row[2] or 0
             self._red_quantite = row[3] or 0
-            color = "#27ae60" if row[0] > 0 else "#e74c3c"
-            info  = f"Stock: {row[0]} {UNITE_DEFAULT}s"
+            stock = float(row[0])
+            color = "#27ae60" if stock > 0 else "#e74c3c"
+            info  = f"Stock: {fq(stock)} {UNITE_DEFAULT}s"
             if self._red_palier > 0:
                 info += f"  |  Offre: {self._red_palier}→+{self._red_quantite}"
             self.lbl_stock.configure(text=info, text_color=color)
@@ -174,17 +196,20 @@ class AppEmploye(ctk.CTk):
             self._update_total()
 
     def _update_total(self, _=None):
+        qty = self._parse_qty()
+        if qty is None:
+            self.total_lbl.configure(text=f"0 {MONNAIE}")
+            self.red_lbl.configure(text="")
+            return
         try:
-            qty  = int(self.vars["quantite"].get())
             prix = float(self.vars["prix_unit"].get())
             red  = calculer_reduction(qty, self._red_palier, self._red_quantite, prix)
             self.total_lbl.configure(text=f"{red['prix_total']:,.0f} {MONNAIE}")
             if red["paquets_offerts"] > 0:
                 self.red_lbl.configure(
-                    text=f"🎁 {red['detail']}  — reçoit {qty+red['paquets_offerts']} {UNITE_DEFAULT}s !")
+                    text=f"🎁 {red['detail']}  — reçoit {fq(qty + red['paquets_offerts'])} {UNITE_DEFAULT}s !")
             else:
-                self.red_lbl.configure(
-                    text=red["detail"] if self._red_palier > 0 else "")
+                self.red_lbl.configure(text=red["detail"] if self._red_palier > 0 else "")
         except (ValueError, AttributeError):
             self.total_lbl.configure(text=f"0 {MONNAIE}")
             self.red_lbl.configure(text="")
@@ -200,17 +225,17 @@ class AppEmploye(ctk.CTk):
         for r in self.tree.get_children(): self.tree.delete(r)
         conn = get_connection()
         for r in conn.execute("""
-            SELECT v.id,
-                   COALESCE(p.nom, v.produit_nom, '[supprimé]'),
+            SELECT v.id, COALESCE(p.nom,v.produit_nom,'[supprimé]'),
                    v.quantite, v.prix_unitaire, v.prix_total,
-                   COALESCE(v.paquets_offerts,0),
-                   COALESCE(v.client,'-'), v.date_vente
+                   COALESCE(v.paquets_offerts,0), COALESCE(v.client,'-'), v.date_vente
             FROM ventes v LEFT JOIN produits p ON v.produit_id=p.id
             WHERE DATE(v.date_vente)=? ORDER BY v.date_vente DESC
         """, (today,)).fetchall():
+            q = float(r[2])
             self.tree.insert("","end", values=(
-                r[0],r[1],r[2],f"{r[3]:.0f}",f"{r[4]:,.0f}",
-                f"+{r[5]}" if r[5]>0 else "—", r[6], str(r[7])[11:16]))
+                r[0], r[1], fq(q), f"{r[3]:.0f}", f"{r[4]:,.0f}",
+                f"+{fq(float(r[5]))}" if float(r[5])>0 else "—",
+                r[6], str(r[7])[11:16]))
         conn.close()
 
     def _on_select(self, _=None):
@@ -223,24 +248,27 @@ class AppEmploye(ctk.CTk):
         nom = self.produit_var.get()
         if not nom or nom not in self._produit_map:
             messagebox.showerror("Erreur","Sélectionnez un produit."); return
+        qty = self._parse_qty()
+        if qty is None:
+            messagebox.showerror("Erreur","Quantité invalide (ex: 1 ou 0.5)."); return
         try:
-            qty  = int(self.vars["quantite"].get())
             prix = float(self.vars["prix_unit"].get())
-            if qty <= 0 or prix < 0: raise ValueError
+            if prix < 0: raise ValueError
         except ValueError:
-            messagebox.showerror("Erreur","Quantité et prix invalides."); return
+            messagebox.showerror("Erreur","Prix invalide."); return
 
         pid  = self._produit_map[nom]["id"]
         conn = get_connection()
-        stock = conn.execute(
-            "SELECT stock_actuel FROM produits WHERE id=?", (pid,)).fetchone()[0]
+        stock = float(conn.execute(
+            "SELECT stock_actuel FROM produits WHERE id=?", (pid,)).fetchone()[0])
         if qty > stock:
             messagebox.showerror("Stock insuffisant",
-                f"Stock: {stock}  Demandé: {qty}")
+                f"Stock disponible: {fq(stock)}  Demandé: {fq(qty)}")
             conn.close(); return
 
         red   = calculer_reduction(qty, self._red_palier, self._red_quantite, prix)
-        total = red["prix_total"]; offs = red["paquets_offerts"]
+        total = red["prix_total"]
+        offs  = red["paquets_offerts"]
         date  = self.vars["date"].get() or datetime.now().strftime("%Y-%m-%d")
 
         cur = conn.execute("""
@@ -253,18 +281,17 @@ class AppEmploye(ctk.CTk):
               self.vars["notes"].get() or None))
         self._last_vente_id = cur.lastrowid
 
-        # Stock jamais négatif
         conn.execute("""
             UPDATE produits SET stock_actuel=MAX(0, stock_actuel-?) WHERE id=?
-        """, (qty+offs, pid))
+        """, (qty + offs, pid))
         conn.execute(
             "INSERT INTO mouvements (produit_id,type,quantite,motif) VALUES (?,?,?,?)",
-            (pid,"sortie",qty+offs,f"Vente par {self.user_info['nom']}"))
+            (pid, "sortie", qty+offs, f"Vente par {self.user_info['nom']}"))
         conn.commit(); conn.close()
 
         self.btn_pdf.configure(state="normal")
         msg = f"✅ Vente #{self._last_vente_id} — {total:,.0f} {MONNAIE}"
-        if offs > 0: msg += f"  |  +{offs} {UNITE_DEFAULT}(s) offert(s) !"
+        if offs > 0: msg += f"  |  +{fq(offs)} {UNITE_DEFAULT}(s) offert(s) !"
         self.status_lbl.configure(text=msg)
         for k in ("quantite","prix_unit","client","notes"): self.vars[k].set("")
         self.total_lbl.configure(text=f"0 {MONNAIE}")

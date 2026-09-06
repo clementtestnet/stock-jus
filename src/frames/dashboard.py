@@ -83,12 +83,13 @@ class DashboardFrame(ctk.CTkFrame):
         conn = get_connection()
         nb_p  = conn.execute("SELECT COUNT(*) FROM produits").fetchone()[0]
         total = conn.execute("SELECT COALESCE(SUM(stock_actuel),0) FROM produits").fetchone()[0]
+        total_str = str(int(float(total))) if float(total)==int(float(total)) else str(round(float(total),1))
         alrt  = conn.execute(
             "SELECT COUNT(*) FROM produits WHERE stock_actuel<=stock_minimum").fetchone()[0]
         today = dt.date.today().strftime("%Y-%m-%d")
         vj    = conn.execute(
             "SELECT COUNT(*) FROM ventes WHERE DATE(date_vente)=?", (today,)).fetchone()[0]
-        for lv, v in zip(self._card_vals, [nb_p, total, alrt, vj]):
+        for lv, v in zip(self._card_vals, [nb_p, total_str, alrt, vj]):
             lv.configure(text=str(v))
 
         for r in self.tree1.get_children(): self.tree1.delete(r)

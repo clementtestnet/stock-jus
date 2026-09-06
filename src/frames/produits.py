@@ -62,17 +62,16 @@ class ProduitsFrame(ctk.CTkFrame):
     def refresh(self):
         for r in self.tree.get_children(): self.tree.delete(r)
         conn = get_connection()
+        def fq(q): return str(int(q)) if float(q)==int(float(q)) else str(q)
         for r in conn.execute("""
             SELECT id,nom,description,unite,prix_vente,stock_actuel,
                    stock_minimum,reduction_palier,reduction_quantite
             FROM produits ORDER BY nom
         """).fetchall():
-            tag = "bas" if r[4] <= r[6] else ""  # r[4]=stock r[6]=min
-            # Note: column index: 0=id,1=nom,2=desc,3=unite,4=prix,5=stock,6=min...
-            tag = "bas" if r[5] <= r[6] else ""
+            tag = "bas" if float(r[5]) <= float(r[6]) else ""
             self.tree.insert("","end", values=(
-                r[0],r[1],r[2] or "-",r[3],
-                f"{r[4]:.0f}",r[5],r[6],r[7] or 0,r[8] or 0), tags=(tag,))
+                r[0], r[1], r[2] or "-", r[3],
+                f"{r[4]:.0f}", fq(r[5]), r[6], r[7] or 0, r[8] or 0), tags=(tag,))
         conn.close()
 
     def _open_form(self, pid=None):
@@ -159,9 +158,9 @@ class FormProduit(ctk.CTkToplevel):
         if not nom:
             messagebox.showerror("Erreur","Nom obligatoire.",parent=self); return
         try:
-            prix = float(self.vars["prix"].get())
-            stock = int(self.vars["stock"].get())
-            smin  = int(self.vars["stock_min"].get())
+            prix = float(self.vars["prix"].get().replace(',','.'))
+            stock = float(self.vars["stock"].get().replace(',','.'))
+            smin  = float(self.vars["stock_min"].get().replace(',','.'))
             pal   = int(self.vars["palier"].get())
             off   = int(self.vars["offerts"].get())
         except ValueError:
